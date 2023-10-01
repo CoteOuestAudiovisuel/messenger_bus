@@ -1,3 +1,4 @@
+README.md
 setup.py
 messenger_bus/__init__.py
 messenger_bus/bus.py

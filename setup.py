@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
 
 name='messenger_bus',
-    version='1.0.1',
+    version='1.0.2',
     description='Bus messaging system',
     url='https://github.com/CoteOuestAudiovisuel/messenger_bus',
     author='Zacharie Assagou',
