@@ -1,3 +1,4 @@
+MANIFEST.in
 README.md
 setup.py
 messenger_bus/__init__.py
@@ -6,6 +7,7 @@ messenger_bus/envelope.py
 messenger_bus/exceptions.py
 messenger_bus/message_handler.py
 messenger_bus/middleware.py
+messenger_bus/schema.yml
 messenger_bus/serializer.py
 messenger_bus/service_container.py
 messenger_bus/stamp.py
