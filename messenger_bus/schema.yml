@@ -1,0 +1,135 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://example.com/product.schema.json"
+title: Messenger Bus Management
+description: Messenger Bus Management
+type: object
+properties:
+
+  framework:
+    type: object
+    additionalProperties: false
+    required:
+      - messenger
+    properties:
+      messenger:
+        type: object
+        additionalProperties: false
+        properties:
+          buses:
+            type: object
+            patternProperties:
+              ".+":
+                $ref: "#/$defs/bus"
+
+          transports:
+            type: object
+            additionalProperties: false
+            patternProperties:
+              ".+":
+                $ref: "#/$defs/transport"
+
+          routing:
+            type: object
+            additionalProperties: false
+            patternProperties:
+              ".+":
+                $ref: "#/$defs/routing"
+
+
+$defs:
+
+  exchange:
+    type: object
+    properties:
+      name:
+        type: string
+      type:
+        enum: [ "topic","fanout","direct","" ]
+        default: fanout
+      durable:
+        type: boolean
+        default: true
+
+  queue:
+    type: object
+    required:
+      - name
+      - binding
+    properties:
+      name:
+        type: string
+      binding:
+        type: string
+      durable:
+        type: boolean
+        default: true
+
+  transport:
+    type: [object,string]
+    if:
+      type: object
+
+    then:
+      additionalProperties: false
+      properties:
+        dsn:
+          type: string
+        options:
+          type: object
+          properties:
+            exchange:
+              $ref: "#/$defs/exchange"
+            queue:
+              $ref: "#/$defs/queue"
+
+  routing:
+    type: [object,string, array]
+    if:
+      type: object
+    then:
+      additionalProperties: false
+      properties:
+        transport:
+          type: string
+        bus:
+          type: string
+    else:
+      if:
+        type: array
+        then:
+          items:
+            type: [object,string]
+            if:
+              type: object
+            then:
+              additionalProperties: false
+              properties:
+                transport:
+                  type: string
+                bus:
+                  type: string
+
+
+  bus:
+    type: object
+    additionalProperties: false
+    required:
+      - middleware
+    properties:
+      middleware:
+        type: array
+        items:
+          type: string
+
+
+
+  middleware:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      ".+":
+        type: object
+
+
+required:
+  - framework
