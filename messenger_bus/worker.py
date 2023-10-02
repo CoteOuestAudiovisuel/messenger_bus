@@ -3,7 +3,7 @@ import json
 import logging
 
 import pika
-from phoenix.messenger.service_container import message_bus
+from .service_container import message_bus
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)

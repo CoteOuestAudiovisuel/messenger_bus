@@ -5,8 +5,8 @@ import re
 from collections import namedtuple
 from typing import NamedTuple
 
-from phoenix.messenger.envelope import Envelope
-from phoenix.messenger.stamp import AmqpStamp, ResultStamp
+from .envelope import Envelope
+from .stamp import AmqpStamp, ResultStamp
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
@@ -18,8 +18,6 @@ _handlers = []
 
 class CommandInterface(namedtuple('CommandInterface','payload')):
     pass
-
-
 
 def handler(transport:str=None, bus:str=None, binding_key:str=None, priority:int=0, command:CommandInterface=None):
     def wrapper(fn):
@@ -48,7 +46,7 @@ def handler(transport:str=None, bus:str=None, binding_key:str=None, priority:int
 
 
 def process_handlers(envelope:Envelope):
-    from phoenix.messenger.transport import AMQPTransport
+    from .transport import AMQPTransport
 
     stamp = envelope.last("TransportStamp")
     transport = stamp.transport
@@ -215,15 +213,3 @@ class HandlerManager:
                 return rst
 
         return None
-
-@handler(transport="async", priority=0)
-class DefaultMessageHandler(MessageHandlerInterface):
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, message, properties:dict={}):
-        from .service_container import handler_manager
-
-        logger.debug("-----> message handled <----: ")
-        logger.debug(json.dumps(message)+" / "+json.dumps(properties))
-        handler_manager.run(message['action'],message['payload'], properties)

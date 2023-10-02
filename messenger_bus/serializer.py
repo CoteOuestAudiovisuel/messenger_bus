@@ -1,9 +1,9 @@
 import json
 
-from phoenix.messenger.bus import MessageBus
-from phoenix.messenger.envelope import Envelope
-from phoenix.messenger.stamp import NonSendableStampInterface, AmqpStamp, SignatureStamp, BusStamp, TransportStamp
-from phoenix.messenger.transport import ClientServerTransport
+from .bus import MessageBus
+from .envelope import Envelope
+from .stamp import NonSendableStampInterface, AmqpStamp, SignatureStamp, BusStamp, TransportStamp
+from .transport import ClientServerTransport
 
 
 class SerializerInterface:
