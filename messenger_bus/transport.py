@@ -5,7 +5,9 @@ import sys
 import pika
 
 from .exceptions import MessengerBusNotSentException
-from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,TransportStamp, SentStamp, NotSentStamp)
+
+from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,
+                    TransportStamp, SentStamp, NotSentStamp)
 from .envelope import (Envelope)
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
@@ -37,24 +39,17 @@ class TransportInterface:
         """ permet d'envoyer un message dans le bus"""
         raise NotImplementedError
 
-    def receive(self,message,options):
-        """ reception d'un message du serveur """
-        raise NotImplementedError
-
     def produce(self, envelope: Envelope):
         """ envoi final en destination du broker message"""
         raise NotImplementedError
 
-    async def consume(self,*args,**kwargs):
-        """ reception direct à partir du broker message"""
-        raise NotImplementedError
 
 
 class SyncTransport(TransportInterface):
     def __init__(self,definition:TransportDefinitionInterface):
         super().__init__(definition)
 
-    def dispatch(self, message, options):
+    def dispatch(self, message, options) -> Envelope:
         """
         ceci est la methode public pour envoyer un message dans le bus
         format de message envoyer est le json
@@ -68,34 +63,24 @@ class SyncTransport(TransportInterface):
         del options["stamps"]
         envelope = envelope.update(TransportStamp(self,options))
         stamp:BusStamp = envelope.last("BusStamp")
-        stamp.bus.middleware_manager.run(envelope)
-
-    def receive(self, message, options):
-        """
-        reception d'un message en provenance du serveur,
-        il est aussitôt envoyé dans le bus pour traitement
-        """
-        stamps = [ReceivedStamp()] + options.get("stamps",[])
-        envelope = Envelope(message, stamps)
-        stamp: BusStamp = envelope.last("BusStamp")
-        stamp.bus.middleware_manager.run(envelope)
+        envelope = stamp.bus.middleware_manager.run(envelope)
+        return envelope
 
 
     def produce(self, envelope: Envelope) -> Envelope:
         """ envoi final en destination du broker message"""
-        envelope = envelope.update(SentStamp())
-        asyncio.run(self.consume(envelope))
-        return envelope
-
-    async def consume(self,envelope:Envelope):
-        """ reception direct à partir du broker message"""
         options = {
-            "stamps":[
+            "stamps": [
                 envelope.last("BusStamp"),
                 envelope.last("TransportStamp"),
             ]
         }
-        self.receive(envelope.message,options)
+
+        stamps = [ReceivedStamp()] + options.get("stamps", [])
+        envelope = Envelope(envelope.message, stamps)
+        stamp: BusStamp = envelope.last("BusStamp")
+        envelope = stamp.bus.middleware_manager.run(envelope)
+        return envelope
 
 
 class ClientServerTransport(TransportInterface):
@@ -111,6 +96,10 @@ class ClientServerTransport(TransportInterface):
 
     def retry(self,*args, **kwargs):
         """ permet d'envoyer a nouveau les echecs"""
+        raise NotImplementedError
+
+    async def consume(self,*args,**kwargs):
+        """ reception direct à partir du broker message"""
         raise NotImplementedError
 
 
@@ -185,7 +174,6 @@ class AMQPTransport(ClientServerTransport):
         bus = stamp.bus
         bus.middleware_manager.run(envelope)
 
-
     def dispatch(self, message, options):
         """
         ceci est la methode public pour envoyer un message dans le bus
@@ -243,7 +231,8 @@ class AMQPTransport(ClientServerTransport):
         )
         stamp:BusStamp = envelope.last("BusStamp")
         bus:MessageBus = stamp.bus
-        bus.middleware_manager.run(envelope)
+        envelope = bus.middleware_manager.run(envelope)
+        return envelope
 
     def produce(self,envelope:Envelope) -> Envelope:
         from .service_container import serializer

@@ -1,8 +1,9 @@
 import sys
 
+from .envelope import Envelope
 from .message_handler import CommandInterface, DefaultCommand
 from .middleware import MiddlewareManager, SignatureMiddleware
-from .stamp import BusStamp, TransportStamp
+from .stamp import BusStamp, TransportStamp, ResultStamp
 from .transport import TransportInterface
 
 
@@ -91,7 +92,7 @@ class MessageBusManager:
         del self._buses[bus_name]
         return self
 
-    def dispatch(self, message,options:dict={}):
+    def dispatch(self, message,options:dict={}) -> Envelope:
         """
         il faut choir un bus par lequel envoyer le message
         donner la possibilité de customiser le bus dans l'argument "options"
@@ -255,7 +256,7 @@ class MessageBusManager:
                 transport = transport_manager.get("__default__")
             transports.append((transport, bus,{}))
 
-
+        _result:Envelope = None
         for el in transports:
             _bus = el[1] if el[1] else bus
 
@@ -266,7 +267,12 @@ class MessageBusManager:
                 ]
             })
             options.update(el[2])
+            envelope:Envelope = el[0].dispatch(message,options)
+            stamp:ResultStamp = envelope.last("ResultStamp")
+            if stamp:
+                if not _result:
+                    _result = envelope
+                else:
+                    _result = envelope.update(stamp)
 
-            el[0].dispatch(message,options)
-
-        return self
+        return _result

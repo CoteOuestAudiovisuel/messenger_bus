@@ -111,7 +111,7 @@ def handler(transport:str=None, bus:str=None, binding_key:str=None, priority:int
 
 
 
-def process_handlers(envelope:Envelope):
+def process_handlers(envelope:Envelope) -> Envelope:
     from .transport import AMQPTransport
 
     stamp = envelope.last("TransportStamp")
@@ -121,6 +121,8 @@ def process_handlers(envelope:Envelope):
     stamp = envelope.last("BusStamp")
     bus = stamp.bus
     message = envelope.message
+
+    print(transport_attributes)
 
     _handlers_selected = []
     for p in _handlers:

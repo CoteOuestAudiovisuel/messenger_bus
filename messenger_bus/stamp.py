@@ -59,6 +59,15 @@ class ReceivedStamp(NonSendableStampInterface):
     def __init__(self):
         super(ReceivedStamp, self).__init__()
 
+class DispatchAfterCurrentBusStamp(NonSendableStampInterface):
+    """
+    Stamp indiquant que l'envelope doit etre correctement  traité par un handler
+    avant de le passer au prochain handler
+    """
+    def __init__(self):
+        super().__init__()
+
+
 class BusStamp(NonSendableStampInterface):
     """
     Stamp indiquant le bus par lequel transit le message

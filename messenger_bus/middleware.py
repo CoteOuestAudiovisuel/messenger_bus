@@ -1,3 +1,4 @@
+import json
 import logging
 
 from .message_handler import process_handlers
@@ -9,9 +10,6 @@ FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('messenger')
 logger.setLevel(logging.DEBUG)
-
-
-
 
 class MiddlewareInterface:
     """
@@ -72,7 +70,6 @@ class MessageHandlerMiddleware(MiddlewareInterface):
     """
     def __init__(self):
         super().__init__(0)
-        pass
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
 
@@ -134,5 +131,5 @@ class MiddlewareManager:
     def run(self, envelope: Envelope) -> Envelope:
         self.currentEnvelope = envelope
         self.iterable = iter(self._middlewares)
-        self.next().handle(envelope, self)
+        envelope = self.next().handle(envelope, self)
         return envelope
