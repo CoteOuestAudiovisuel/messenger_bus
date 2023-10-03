@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-
 import pika
 from .service_container import message_bus
 

@@ -2,9 +2,9 @@ import json
 
 from .bus import MessageBus
 from .envelope import Envelope
+from .message_handler import  DefaultCommand
 from .stamp import NonSendableStampInterface, AmqpStamp, SignatureStamp, BusStamp, TransportStamp
 from .transport import ClientServerTransport
-
 
 class SerializerInterface:
 
@@ -50,11 +50,33 @@ class DefaultSerializer(SerializerInterface):
 
     def decode(self, encoded_envelope:dict) -> Envelope:
         from .service_container import message_bus
-        from .service_container import transport_manager
+        from .service_container import transport_manager, class_loader
+
         message = encoded_envelope['body']
         headers = encoded_envelope['headers']
         stamps = []
         body = json.loads(message)
+
+        if "CommandInterface" in headers:
+            _module = headers.get("CommandInterface").split(".")
+            _class_name = _module.pop()
+            _module = ".".join(_module)
+
+            try:
+                instance = class_loader(_module,_class_name)
+                instance._hydrate(body)
+                body = instance
+            except:
+                cmd = DefaultCommand()
+                for k, v in body.items():
+                    setattr(cmd, k, v)
+                body = cmd
+
+        else:
+            cmd = DefaultCommand()
+            for k,v in body.items():
+                setattr(cmd,k,v)
+            body = cmd
 
         if "SignatureStamp" in headers:
             stamps.append(SignatureStamp(headers["SignatureStamp"]["producerId"],headers["SignatureStamp"]["payloadToken"]))
@@ -92,7 +114,8 @@ class DefaultSerializer(SerializerInterface):
             headers[k] = last.__dict__
 
         headers["x-routing-key"] = stamp.routing_key
-        body = json.dumps(message)
+        headers["CommandInterface"] = message.__module__ + "." + message.__class__.__name__
+        body = str(message)
 
         return {
             'body':body,

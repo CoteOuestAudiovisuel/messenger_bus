@@ -1,6 +1,7 @@
 import sys
 
-from .middleware import MiddlewareManager, SendMiddleware, MessageHandlerMiddleware, SignatureMiddleware
+from .message_handler import CommandInterface, DefaultCommand
+from .middleware import MiddlewareManager, SignatureMiddleware
 from .stamp import BusStamp, TransportStamp
 from .transport import TransportInterface
 
@@ -36,7 +37,7 @@ class MessageBus(MessageBusInterface):
         il faut choir un transport par lequel envoyer le message
         donner la possibilité de customiser le transport dans l'argument "options"
         """
-        from service_container import transport_manager
+        from .service_container import transport_manager
         transport:TransportInterface = transport_manager.get(options.get("transport"))
 
         if transport is None:
@@ -98,10 +99,15 @@ class MessageBusManager:
         :param options:
         :return:
         """
+
+        if type(message) == dict:
+            message = DefaultCommand(message)
+        elif not isinstance(message,CommandInterface):
+            raise Exception("message type can only be 'CommandInterface' or dict")
+
+
         from .service_container import transport_manager, framework_template
         transports:list = []
-
-
 
         bus = [i for k,i in self._buses.items() if i.definition.name == options.get("bus",self._default_bus_name)]
         if not len(bus):
@@ -109,6 +115,7 @@ class MessageBusManager:
         bus = bus.pop()
 
 
+       # if type(message) == dict:
         """
         on doit deviner le transport a utiliser à partir du fichier de configuration messenger.yml
         """
@@ -251,6 +258,7 @@ class MessageBusManager:
 
         for el in transports:
             _bus = el[1] if el[1] else bus
+
             options.update({
                 "stamps":[
                     BusStamp(_bus),
@@ -258,6 +266,7 @@ class MessageBusManager:
                 ]
             })
             options.update(el[2])
+
             el[0].dispatch(message,options)
 
         return self

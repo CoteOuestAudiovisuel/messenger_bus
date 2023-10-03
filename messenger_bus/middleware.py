@@ -1,4 +1,3 @@
-import json
 import logging
 
 from .message_handler import process_handlers
@@ -44,8 +43,9 @@ class SignatureMiddleware(MiddlewareInterface):
     def handle(self,envelope:Envelope, stack) -> Envelope:
         stamp:SignatureStamp = envelope.last("SignatureStamp")
         if not stamp:
-            body = json.dumps(envelope.message)
+            body = str(envelope.message)
             token = hmac.digest(b"zakes25649", body.encode(), digest="sha256").hex()
+
             envelope = envelope.update(SignatureStamp("myProducerId",token))
 
         return stack.next().handle(envelope, stack)

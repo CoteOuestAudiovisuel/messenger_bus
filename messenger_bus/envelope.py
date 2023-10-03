@@ -21,8 +21,10 @@ class Envelope:
 
 
     def update(self,*stamps):
-        from copy import deepcopy
-        cloned = deepcopy(self)
+        from copy import deepcopy,copy
+
+        cloned = copy(self)
+
         for stamp in stamps:
             if stamp.__class__.__name__ not in cloned.stamps:
                 cloned.stamps[stamp.__class__.__name__] = []

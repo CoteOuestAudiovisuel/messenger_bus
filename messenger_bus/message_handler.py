@@ -16,8 +16,74 @@ logger.setLevel(logging.DEBUG)
 _handlers = []
 
 
-class CommandInterface(namedtuple('CommandInterface','payload')):
-    pass
+class CommandInterfaceMeta(type):
+
+    def __new__(metacls, cls, bases, attrs):
+
+        _new_dict = {"__dict__":{}}
+        for k,v in attrs.items():
+            if not k.startswith("__") and not k.endswith("__") and not callable(v):
+                _new_dict["__dict__"][k] = v
+
+        for k,v in _new_dict["__dict__"].items():
+            del attrs[k]
+
+        attrs.update(_new_dict)
+
+        return type.__new__(metacls, cls, bases, attrs)
+
+
+class CommandInterface(metaclass=CommandInterfaceMeta):
+
+    def __init__(self, payload:dict={}):
+        self._hydrate(payload)
+
+    def _hydrate(self, payload:dict={}):
+        for k,v in payload.items():
+            if k not in self:
+                raise AttributeError("'{}'".format(k))
+
+            if getattr(self,k) is None:
+                self.__dict__[k] = v
+
+    def __eq__(self, other):
+        for k,v in self.__dict__.items():
+            if k not in other or v != other[k]:
+                return False
+        return True
+
+    def __call__(self, payload:dict={}):
+        return CommandInterface(payload)
+
+    def __setattr__(self, key, value):
+        raise Exception("{} is immutable object".format(self.__class__.__name__))
+
+    def __getattr__(self, k):
+        if k not in self.__dict__:
+            raise AttributeError("'{}'".format(k))
+        return self.__dict__.get(k)
+
+    def __setitem__(self, key, value):
+        self.__setattr__(key,value)
+
+    def __getitem__(self, key):
+        return self.__getattr__(key)
+
+    def __str__(self):
+        return json.dumps(self.__repr__())
+
+    def __repr__(self):
+        return self.__dict__
+
+    def __contains__(self, k):
+        return True if k in self.__dict__ else False
+
+class DefaultCommand(CommandInterface):
+    action = None
+    payload = None
+    def __init__(self, payload:dict={}):
+        super().__init__(payload)
+
 
 def handler(transport:str=None, bus:str=None, binding_key:str=None, priority:int=0, command:CommandInterface=None):
     def wrapper(fn):
@@ -55,8 +121,6 @@ def process_handlers(envelope:Envelope):
     stamp = envelope.last("BusStamp")
     bus = stamp.bus
     message = envelope.message
-
-    print(transport_attributes)
 
     _handlers_selected = []
     for p in _handlers:

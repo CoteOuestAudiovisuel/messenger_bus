@@ -1,13 +1,11 @@
 import asyncio
 import logging
-
+import sys
 
 import pika
 
 from .exceptions import MessengerBusNotSentException
-
-from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,
-                    TransportStamp, SentStamp, NotSentStamp)
+from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,TransportStamp, SentStamp, NotSentStamp)
 from .envelope import (Envelope)
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
@@ -181,6 +179,7 @@ class AMQPTransport(ClientServerTransport):
             SendingStamp()
         ] + options.get("stamps",[])
 
+
         envelope = Envelope(message, stamps)
         stamp:BusStamp = envelope.last("BusStamp")
         bus = stamp.bus
@@ -203,7 +202,6 @@ class AMQPTransport(ClientServerTransport):
         }
         default_properties.update(properties)
         options["properties"] = default_properties
-
         self._send(message, options)
 
     def receive(self, body: str,options):
@@ -273,7 +271,7 @@ class AMQPTransport(ClientServerTransport):
         try:
             connection, channel, queue_name = self.create_connection()
             channel.basic_publish(
-                exchange=self.definition.exchange.get("name"),
+                exchange=self.definition.options.get("exchange").get("name"),
                 routing_key=routing_key,
                 body=body.encode(),
                 properties=pika.BasicProperties(**properties)
