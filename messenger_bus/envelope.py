@@ -31,6 +31,15 @@ class Envelope:
             cloned.stamps[stamp.__class__.__name__].append(stamp)
         return cloned
 
+    def remove(self,*stamp_cls):
+        from copy import copy
+
+        cloned = copy(self)
+
+        for stamp in stamp_cls:
+            del cloned.stamps[stamp.__name__]
+        return cloned
+
     def last(self,stampFqnc:str) -> StampInterface:
         "renvoi le dernier stamp stampFqnc ajouté"
         return self.stamps[stampFqnc][-1] if stampFqnc in self.stamps else None

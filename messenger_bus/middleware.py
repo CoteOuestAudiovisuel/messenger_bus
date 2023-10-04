@@ -1,8 +1,9 @@
 import json
 import logging
+import sys
 
 from .message_handler import process_handlers
-from .stamp import (SignatureStamp, TransportStamp)
+from .stamp import (SignatureStamp, TransportStamp, BusStamp, StopPropagationStamp)
 from .envelope import (Envelope)
 import hmac
 
@@ -57,7 +58,7 @@ class SendMiddleware(MiddlewareInterface):
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
 
-        if envelope.last("SendingStamp"):
+        if envelope.last("SendingStamp") and not envelope.last("DispatchAfterCurrentBusStamp"):
             stamp_transport: TransportStamp = envelope.last("TransportStamp")
             transport = stamp_transport.transport
             envelope = transport.produce(envelope)
@@ -78,6 +79,27 @@ class MessageHandlerMiddleware(MiddlewareInterface):
 
         return stack.next().handle(envelope,stack)
 
+
+class DispatchAfterCurrentBusMiddleware(MiddlewareInterface):
+    """
+    middleware en charge de l'execution d'un bus apres la fin de traitement du bus en cours
+    il faut arreter immediatement le traitement des autres middlewares
+    enregistrer l'envelope et le redispatcher a la fin du bus
+    """
+    def __init__(self):
+        super().__init__(1)
+
+    def handle(self,envelope:Envelope, stack) -> Envelope:
+
+        if envelope.last("DispatchAfterCurrentBusStamp") and envelope.last("SendingStamp"):
+            stamp:BusStamp = envelope.last("BusStamp")
+            stamp.bus.add_event(envelope)
+            return envelope
+
+        return stack.next().handle(envelope, stack)
+
+
+
 class MiddlewareManager:
     """
     le middleware manager, il sert a orchestrer tout les middlewares
@@ -88,12 +110,13 @@ class MiddlewareManager:
         self.iterable = None
 
         middlewares += [
+            DispatchAfterCurrentBusMiddleware(),
             SendMiddleware(),
             MessageHandlerMiddleware(),
         ]
 
         for middleware in middlewares:
-            if middleware.priority <= 10 and type(middleware) not in [SendMiddleware, MessageHandlerMiddleware]:
+            if middleware.priority <= 10 and type(middleware) not in [SendMiddleware, MessageHandlerMiddleware, DispatchAfterCurrentBusMiddleware]:
                 middleware.priority = 11
             self.add(middleware)
 
@@ -122,6 +145,8 @@ class MiddlewareManager:
         """
         middleware = None
         try:
+            if not self.iterable:
+                raise StopIteration
             middleware = next(self.iterable)
         except StopIteration as e:
             middleware = EndMiddleware()
@@ -132,4 +157,13 @@ class MiddlewareManager:
         self.currentEnvelope = envelope
         self.iterable = iter(self._middlewares)
         envelope = self.next().handle(envelope, self)
+
+        try:
+            next(self.iterable)
+            envelope = envelope.update(StopPropagationStamp())
+        except:
+            pass
+        finally:
+            self.iterable = None
+
         return envelope

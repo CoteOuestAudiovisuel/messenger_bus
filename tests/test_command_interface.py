@@ -31,3 +31,7 @@ class TestCommandInterface(unittest.TestCase):
     def test_unknow_attribute(self):
         with self.assertRaises(AttributeError):
             m2 = UserEmailChanged({"email": "test@test.test","a":"b"})
+
+
+if __name__ == "__main__":
+    unittest.main()

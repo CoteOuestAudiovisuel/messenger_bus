@@ -1,9 +1,10 @@
+import asyncio
 import sys
 
 from .envelope import Envelope
 from .message_handler import CommandInterface, DefaultCommand
 from .middleware import MiddlewareManager, SignatureMiddleware
-from .stamp import BusStamp, TransportStamp, ResultStamp
+from .stamp import BusStamp, TransportStamp, ResultStamp, DispatchAfterCurrentBusStamp
 from .transport import TransportInterface
 
 
@@ -19,10 +20,19 @@ class MessageBusInterface:
     def __init__(self, definition:MessageBusInterfaceDefinition):
         self.middleware_manager = MiddlewareManager(definition.middlewares)
         self.definition = definition
+        self._events = []
 
     def dispatch(self, message, options:dict):
         """ permet d'envoyer un message dans le bus"""
         raise NotImplementedError
+
+    def has_event(self) -> bool:
+        return len(self._events) != 0
+
+    def add_event(self, item:Envelope):
+        if not isinstance(item,Envelope):
+            raise TypeError(item.__class__.__name__)
+        self._events.append(item)
 
 
 class MessageBus(MessageBusInterface):
@@ -257,22 +267,45 @@ class MessageBusManager:
             transports.append((transport, bus,{}))
 
         _result:Envelope = None
+        from copy import copy
         for el in transports:
             _bus = el[1] if el[1] else bus
 
-            options.update({
-                "stamps":[
-                    BusStamp(_bus),
-                    TransportStamp(el[0])
-                ]
-            })
-            options.update(el[2])
-            envelope:Envelope = el[0].dispatch(message,options)
+            _options = copy(options)
+
+            if "stamps" not in _options:
+                _options["stamps"] = []
+
+            _options["stamps"] += [
+                BusStamp(_bus),
+                TransportStamp(el[0])
+            ]
+
+            _options.update(el[2])
+            envelope:Envelope = el[0].dispatch(message,_options)
             stamp:ResultStamp = envelope.last("ResultStamp")
-            if stamp:
-                if not _result:
-                    _result = envelope
-                else:
-                    _result = envelope.update(stamp)
+            if not _result:
+                _result = envelope
+
+            else:
+                _result = envelope.update(stamp)
+
+
+        if _result and not _result.last("DispatchAfterCurrentBusStamp"):
+            asyncio.run(self.dispatch_pending_events())
 
         return _result
+
+    async def dispatch_pending_events(self):
+        # verifier les events en attente de dispatching
+        for _name, _bus in self._buses.items():
+            if _bus.has_event():
+
+                while True:
+                    try:
+                        _envelope:Envelope = next(iter(_bus._events))
+                        _bus._events.remove(_envelope)
+                        _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
+                        envelope = _bus.middleware_manager.run(_envelope)
+                    except StopIteration as e:
+                        break

@@ -67,6 +67,12 @@ class DispatchAfterCurrentBusStamp(NonSendableStampInterface):
     def __init__(self):
         super().__init__()
 
+class StopPropagationStamp(NonSendableStampInterface):
+    """
+    Stamp indiquant que l'envelope une fin prématuré dans un middleware
+    """
+    def __init__(self):
+        super().__init__()
 
 class BusStamp(NonSendableStampInterface):
     """
