@@ -23,14 +23,14 @@ All command class must inherits `messenger_bus.command.CommandInterface`
 
 when message is dispatched in a bus, you can handle it, creating a Handler class
 
-  import ChangeUserEmailCommand
-  from messenger_bus.message_handler import handler
-  
-  @handler(priority=7)
-  class ChangeUserEmailHandler:
-      def __call__(self, command:ChangeUserEmailCommand, properties:dict):
-          print("__call__ -------------------->",command,properties)
-          return {"action":True}
+    import ChangeUserEmailCommand
+    from messenger_bus.message_handler import handler
+    
+    @handler(priority=7)
+    class ChangeUserEmailHandler:
+        def __call__(self, command:ChangeUserEmailCommand, properties:dict):
+            print("__call__ -------------------->",command,properties)
+            return {"action":True}
           
     @handler(priority=8)
     def change_user_email_handler(command:ChangeUserEmailCommand):
