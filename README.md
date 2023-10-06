@@ -122,3 +122,10 @@ to send a message in a bus use the code below.
 if your handler return any value, you can get it back with the code below
 
     print(envelope.last("ResultStamp").result)
+
+
+# Middlewares
+
+When dispatching a message throw the bus, it pass throw some builtin middlewares.
+You can create your own middleware to manipulate the message.
+
