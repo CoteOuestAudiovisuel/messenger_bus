@@ -132,6 +132,7 @@ You can create your own middleware to manipulate the message.
 let's create a custom middleware to add a delay.
 
   from messenger_bus.middleware import MiddlewareInterface
+  from messenger_bus.envelope import Envelope
   import time
 
   class CustomMiddleware(MiddlewareInterface):
