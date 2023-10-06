@@ -36,7 +36,7 @@ these options are available for this annotation: priority (int), transport (str)
     @handler(priority=7)
     class ChangeUserEmailHandler:
         def __call__(self, command:ChangeUserEmailCommand):
-            print("__call__ -------------------->",command)
+            print(command)
             return {"action":True}
           
 
@@ -52,7 +52,7 @@ these options are available for this annotation: priority (int), transport (str)
           
         @handler(priority=8)
         def change_user_email_handler(command:ChangeUserEmailCommand):
-            print("yes -------------------->",command)
+            print(command)
 
         
 # File configuration.
