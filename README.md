@@ -27,7 +27,7 @@ use the handler annotation on a class definition or on a class method or both.
 
 these options are available for this annotation: priority (int), transport (str), bus (str)
 
-** class level handler **
+## Class level handler
 
 
     import ChangeUserEmailCommand
@@ -42,7 +42,7 @@ these options are available for this annotation: priority (int), transport (str)
 
 
 
-** method level handler **
+## Method class level handler
 
 
     import ChangeUserEmailCommand
