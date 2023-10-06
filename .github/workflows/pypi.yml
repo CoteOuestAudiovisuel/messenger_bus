@@ -36,5 +36,6 @@ jobs:
           echo "creating dist/$NAME-$TAG.tar.gz file...[OK]"
 
           echo "Pushing image to Pypi..."
+          echo "twine upload dist/$NAME-$TAG.tar.gz -u '${{ secrets.PYPI_USERNAME }}' -p '${{ secrets.PYPI_TOKEN }}'"
           twine upload dist/$NAME-$TAG.tar.gz -u "${{ secrets.PYPI_USERNAME }}" -p "${{ secrets.PYPI_TOKEN }}"
           echo "Pushing image to Pypi...[OK]"
