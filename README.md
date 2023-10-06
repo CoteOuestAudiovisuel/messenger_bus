@@ -21,7 +21,15 @@ All command class must inherits `messenger_bus.command.CommandInterface`
 
 # Handler class
 
-when message is dispatched in a bus, you can handle it, creating a Handler class
+when message is dispatched in a bus, you can handle it, creating a Handler class.
+
+use the handler annotation on a class definition or on a class method or both.
+these options are available for this annotation:
+
+- priority (int)
+- transport (str)
+- bus (str)
+
 
     import ChangeUserEmailCommand
     from messenger_bus.message_handler import handler
