@@ -71,3 +71,19 @@ for example purpose we create 3 buses, _**command bus**_, _**query bus**_ and _*
 
 
 Then create environment variable `MESSENGERBUS_CONFIG_FILE` with the config file absolute path.
+
+# Send a message
+
+to send a message in a bus use the code below.
+
+    from messenger_bus.service_container import message_bus
+
+    envelope = message_bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
+        # "transport":"sync",
+        # "bus":"command.bus",
+    })
+
+
+if your handler return any value, you can get it back with the code below
+
+    print(envelope.last("ResultStamp").result)
