@@ -27,6 +27,8 @@ use the handler annotation on a class definition or on a class method or both.
 
 these options are available for this annotation: priority (int), transport (str), bus (str)
 
+** class level handler **
+
 
     import ChangeUserEmailCommand
     from messenger_bus.message_handler import handler
@@ -37,6 +39,10 @@ these options are available for this annotation: priority (int), transport (str)
             print("__call__ -------------------->",command)
             return {"action":True}
           
+
+
+
+** method level handler **
 
 
     import ChangeUserEmailCommand
