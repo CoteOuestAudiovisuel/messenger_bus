@@ -33,9 +33,16 @@ these options are available for this annotation: priority (int), transport (str)
     
     @handler(priority=7)
     class ChangeUserEmailHandler:
-        def __call__(self, command:ChangeUserEmailCommand, properties:dict):
-            print("__call__ -------------------->",command,properties)
+        def __call__(self, command:ChangeUserEmailCommand):
+            print("__call__ -------------------->",command)
             return {"action":True}
+          
+
+
+    import ChangeUserEmailCommand
+    from messenger_bus.message_handler import handler
+    
+    class ChangeUserEmailHandler:
           
         @handler(priority=8)
         def change_user_email_handler(command:ChangeUserEmailCommand):
