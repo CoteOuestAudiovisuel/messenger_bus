@@ -42,7 +42,7 @@ these options are available for this annotation: priority (int), transport (str)
 
 
 
-## Method class level handler
+## Function level handler
 
 
     import ChangeUserEmailCommand
