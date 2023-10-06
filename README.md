@@ -127,5 +127,26 @@ if your handler return any value, you can get it back with the code below
 # Middlewares
 
 When dispatching a message throw the bus, it pass throw some builtin middlewares.
+
 You can create your own middleware to manipulate the message.
+let's create a custom middleware to add a delay.
+
+  from messenger_bus.middleware import MiddlewareInterface
+  import time
+
+  class CustomMiddleware(MiddlewareInterface):
+
+    def __init__(self):
+       super().__init__()
+
+    def handle(self,envelope:Envelope, stack) -> Envelope:
+
+        if envelope.last("SendingStamp"):
+            time.sleep(5)
+
+        return stack.next().handle(envelope, stack)
+
+
+Adding this CustomMiddleware to a bus in the yaml config file will add a delay before dispatching the message.
+
 
