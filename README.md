@@ -15,8 +15,8 @@ all command class must inherits `messenger_bus.command.CommandInterface`
  
     class ChangeUserEmailCommand():
         email = None
-        def __init__(self, value:str):
-            super().__init__({"email":value})
+        def __init__(self, payload:dict):
+            super().__init__(payload)
 
 
 
@@ -76,9 +76,9 @@ Then create environment variable `MESSENGERBUS_CONFIG_FILE` with the config file
 
 to send a message in a bus use the code below.
 
-    from messenger_bus.service_container import message_bus
+    from messenger_bus.service_container import message_bus as bus
 
-    envelope = message_bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
+    envelope = bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
         # "transport":"sync",
         # "bus":"command.bus",
     })
