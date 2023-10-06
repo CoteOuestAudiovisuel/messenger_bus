@@ -25,11 +25,7 @@ when message is dispatched in a bus, you can handle it, creating a Handler class
 
 use the handler annotation on a class definition or on a class method or both.
 
-these options are available for this annotation:
-
-- priority (int)
-- transport (str)
-- bus (str)
+these options are available for this annotation: priority (int), transport (str), bus (str)
 
 
     import ChangeUserEmailCommand
