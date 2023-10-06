@@ -29,43 +29,43 @@ Create a yaml file in your project with the value below.
 for example purpose we create 3 buses, _**command bus**_, _**query bus**_ and _**event bus**_
 
     framework:
-    messenger:
-        buses:
-            command.bus:
-                middleware:
-                    - messenger_bus.middleware.SignatureMiddleware
-
-            query.bus:
-                middleware:
-                    - messenger_bus.middleware.SignatureMiddleware
-
-            event.bus:
-                middleware:
-                    - messenger_bus.middleware.SignatureMiddleware
-
-        transports:
-
-            async:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                options:
-                    exchange:
-                        name: '%env(RABBITMQ_EXCHANGE_NAME)%'
-                        type: '%env(RABBITMQ_EXCHANGE_TYPE)%'
-                        durable: true
-
-                    queue:
-                        name: '%env(RABBITMQ_QUEUE)%'
-                        binding: '%env(RABBITMQ_BINDING_KEYS)%'
-                        durable: true
-
-            sync:
-                dsn: 'sync://'
-
-      
-
-        routing:
-            'ChangeUserEmailCommand': sync
-            'messenger_bus.message_handler.DefaultCommand': async
+        messenger:
+            buses:
+                command.bus:
+                    middleware:
+                        - messenger_bus.middleware.SignatureMiddleware
+    
+                query.bus:
+                    middleware:
+                        - messenger_bus.middleware.SignatureMiddleware
+    
+                event.bus:
+                    middleware:
+                        - messenger_bus.middleware.SignatureMiddleware
+    
+            transports:
+    
+                async:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: '%env(RABBITMQ_EXCHANGE_NAME)%'
+                            type: '%env(RABBITMQ_EXCHANGE_TYPE)%'
+                            durable: true
+    
+                        queue:
+                            name: '%env(RABBITMQ_QUEUE)%'
+                            binding: '%env(RABBITMQ_BINDING_KEYS)%'
+                            durable: true
+    
+                sync:
+                    dsn: 'sync://'
+    
+          
+    
+            routing:
+                'ChangeUserEmailCommand': sync
+                'messenger_bus.message_handler.DefaultCommand': async
 
 
 
