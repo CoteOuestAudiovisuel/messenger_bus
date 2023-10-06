@@ -25,6 +25,8 @@ jobs:
     - name: Build and Deploy to Pypi
       id: build-image
       run: |
+          pip install twine
+
           echo "creating build folder..."
           pip install --upgrade .
           echo "creating build folder...[OK]"
