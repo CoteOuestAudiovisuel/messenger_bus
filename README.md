@@ -32,9 +32,9 @@ when message is dispatched in a bus, you can handle it, creating a Handler class
             print("__call__ -------------------->",command,properties)
             return {"action":True}
           
-    @handler(priority=8)
-    def change_user_email_handler(command:ChangeUserEmailCommand):
-        print("yes -------------------->",command)
+        @handler(priority=8)
+        def change_user_email_handler(command:ChangeUserEmailCommand):
+            print("yes -------------------->",command)
 
         
 # File configuration.
