@@ -137,15 +137,15 @@ let's create a custom middleware to add a delay.
     
     class CustomMiddleware(MiddlewareInterface):
     
-    def __init__(self):
-       super().__init__()
-    
-    def handle(self,envelope:Envelope, stack) -> Envelope:
-    
-        if envelope.last("SendingStamp"):
-            time.sleep(5)
-    
-        return stack.next().handle(envelope, stack)
+        def __init__(self):
+           super().__init__()
+        
+        def handle(self,envelope:Envelope, stack) -> Envelope:
+        
+            if envelope.last("SendingStamp"):
+                time.sleep(5)
+        
+            return stack.next().handle(envelope, stack)
 
 
 
