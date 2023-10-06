@@ -1,0 +1,38 @@
+name: Pypi deployment
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+    branches: [ main ]
+
+env:
+  TAG: 1.0.8-alpha
+  NAME: messenger_bus
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Build and Deploy to Pypi
+      id: build-image
+      run: |
+          echo "creating build folder..."
+          pip install --upgrade .
+          echo "creating build folder...[OK]"
+
+          echo "creating dist/$NAME-$TAG.tar.gz file..."
+          python setup.py sdist
+          echo "creating dist/$NAME-$TAG.tar.gz file...[OK]"
+
+          echo "Pushing image to Pypi..."
+          twine upload -u ${{ secrets.PYPI_USERNAME}} -p ${{ secrets.PYPI_TOKEN}} dist/$NAME-$TAG.tar.gz
+          echo "Pushing image to Pypi...[OK]"
