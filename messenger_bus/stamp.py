@@ -25,7 +25,7 @@ class NonSendableStampInterface(StampInterface):
 
 class AmqpStamp(NonSendableStampInterface):
     def __init__(self,  routing_key:str = "",  flags:int = 2, attributes:AMQPBasicProperties = AMQPBasicProperties()):
-        super(AmqpStamp, self).__init__()
+        super().__init__()
         self.routing_key = routing_key
         self.flags = flags
         self.attributes = attributes
@@ -36,28 +36,37 @@ class SendingStamp(NonSendableStampInterface):
     Stamp indiquant que l'envelope est en cours d'envoi
     """
     def __init__(self):
-        super(SendingStamp, self).__init__()
+        super().__init__()
 
 class SentStamp(NonSendableStampInterface):
     """
     Stamp indiquant que l'envelope a bien été envoyé
     """
     def __init__(self):
-        super(SentStamp, self).__init__()
+        super().__init__()
 
 class NotSentStamp(NonSendableStampInterface):
     """
     Stamp indiquant que l'envelope n'a pas pu être envoyé
     """
     def __init__(self):
-        super(NotSentStamp, self).__init__()
+        super().__init__()
 
 class ReceivedStamp(NonSendableStampInterface):
     """
     Stamp indiquant que l'envelope a bien été recu
     """
     def __init__(self):
-        super(ReceivedStamp, self).__init__()
+        super().__init__()
+
+class SkipReceivedStamp(NonSendableStampInterface):
+    """
+    Stamp indiquant que l'envelope doit être bypassé le middleware MessageHandlerMiddleware
+    """
+    def __init__(self):
+        super().__init__()
+
+
 
 class DispatchAfterCurrentBusStamp(NonSendableStampInterface):
     """

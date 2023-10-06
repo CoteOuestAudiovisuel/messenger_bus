@@ -18,13 +18,18 @@ class MessageBusInterface:
     """
     """
     def __init__(self, definition:MessageBusInterfaceDefinition):
-        self.middleware_manager = MiddlewareManager(definition.middlewares)
+        #self.middleware_manager = MiddlewareManager(definition.middlewares)
         self.definition = definition
         self._events = []
 
     def dispatch(self, message, options:dict):
         """ permet d'envoyer un message dans le bus"""
         raise NotImplementedError
+
+    def run(self, envelope:Envelope) -> Envelope:
+        """ execute tout les middlewares """
+        _item = MiddlewareManager(self.definition.middlewares)
+        return _item.run(envelope)
 
     def has_event(self) -> bool:
         return len(self._events) != 0
@@ -33,6 +38,9 @@ class MessageBusInterface:
         if not isinstance(item,Envelope):
             raise TypeError(item.__class__.__name__)
         self._events.append(item)
+
+    def remove_event(self, item: Envelope):
+        self._events.remove(item)
 
 
 class MessageBus(MessageBusInterface):
@@ -280,10 +288,10 @@ class MessageBusManager:
                 BusStamp(_bus),
                 TransportStamp(el[0])
             ]
-
             _options.update(el[2])
             envelope:Envelope = el[0].dispatch(message,_options)
             stamp:ResultStamp = envelope.last("ResultStamp")
+
             if not _result:
                 _result = envelope
 
@@ -300,12 +308,11 @@ class MessageBusManager:
         # verifier les events en attente de dispatching
         for _name, _bus in self._buses.items():
             if _bus.has_event():
-
                 while True:
                     try:
                         _envelope:Envelope = next(iter(_bus._events))
-                        _bus._events.remove(_envelope)
+                        _bus.remove_event(_envelope)
                         _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
-                        envelope = _bus.middleware_manager.run(_envelope)
+                        envelope = _bus.run(_envelope)
                     except StopIteration as e:
                         break

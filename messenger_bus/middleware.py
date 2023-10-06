@@ -37,15 +37,17 @@ class SignatureMiddleware(MiddlewareInterface):
     ajoute une signature electronique aux données envoyées
     """
     def __init__(self):
-       super().__init__()
+       super().__init__(1)
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
-        stamp:SignatureStamp = envelope.last("SignatureStamp")
-        if not stamp:
-            body = str(envelope.message)
-            token = hmac.digest(b"zakes25649", body.encode(), digest="sha256").hex()
 
-            envelope = envelope.update(SignatureStamp("myProducerId",token))
+        if envelope.last("SendingStamp"):
+            stamp:SignatureStamp = envelope.last("SignatureStamp")
+            if not stamp:
+                body = str(envelope.message)
+                token = hmac.digest(b"zakes25649", body.encode(), digest="sha256").hex()
+
+                envelope = envelope.update(SignatureStamp("myProducerId",token))
 
         return stack.next().handle(envelope, stack)
 
@@ -54,7 +56,7 @@ class SendMiddleware(MiddlewareInterface):
     middleware en charge de l'envoi des messages
     """
     def __init__(self):
-        super().__init__(0)
+        super().__init__(-1)
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
 
@@ -62,6 +64,7 @@ class SendMiddleware(MiddlewareInterface):
             stamp_transport: TransportStamp = envelope.last("TransportStamp")
             transport = stamp_transport.transport
             envelope = transport.produce(envelope)
+
 
         return stack.next().handle(envelope,stack)
 
@@ -74,7 +77,7 @@ class MessageHandlerMiddleware(MiddlewareInterface):
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
 
-        if envelope.last("ReceivedStamp"):
+        if envelope.last("ReceivedStamp") and not envelope.last("SkipReceivedStamp"):
             envelope = process_handlers(envelope)
 
         return stack.next().handle(envelope,stack)
@@ -87,7 +90,7 @@ class DispatchAfterCurrentBusMiddleware(MiddlewareInterface):
     enregistrer l'envelope et le redispatcher a la fin du bus
     """
     def __init__(self):
-        super().__init__(1)
+        super().__init__(2)
 
     def handle(self,envelope:Envelope, stack) -> Envelope:
 
@@ -104,18 +107,18 @@ class MiddlewareManager:
     """
     le middleware manager, il sert a orchestrer tout les middlewares
     """
-    def __init__(self, middlewares: list):
+    def __init__(self, middlewares: list=[]):
         self._middlewares = []
         self.currentEnvelope = None
         self.iterable = None
 
-        middlewares += [
+        ms:list = [
             DispatchAfterCurrentBusMiddleware(),
             SendMiddleware(),
             MessageHandlerMiddleware(),
-        ]
+        ] + middlewares
 
-        for middleware in middlewares:
+        for middleware in ms:
             if middleware.priority <= 10 and type(middleware) not in [SendMiddleware, MessageHandlerMiddleware, DispatchAfterCurrentBusMiddleware]:
                 middleware.priority = 11
             self.add(middleware)
@@ -145,8 +148,8 @@ class MiddlewareManager:
         """
         middleware = None
         try:
-            if not self.iterable:
-                raise StopIteration
+            # if not self.iterable:
+            #     raise StopIteration
             middleware = next(self.iterable)
         except StopIteration as e:
             middleware = EndMiddleware()
@@ -163,7 +166,7 @@ class MiddlewareManager:
             envelope = envelope.update(StopPropagationStamp())
         except:
             pass
-        finally:
-            self.iterable = None
+        # finally:
+        #     self.iterable = None
 
         return envelope

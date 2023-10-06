@@ -7,7 +7,7 @@ import pika
 from .exceptions import MessengerBusNotSentException
 
 from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,
-                    TransportStamp, SentStamp, NotSentStamp)
+                    TransportStamp, SentStamp, NotSentStamp, SkipReceivedStamp)
 from .envelope import (Envelope)
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
@@ -63,24 +63,24 @@ class SyncTransport(TransportInterface):
         del options["stamps"]
         envelope = envelope.update(TransportStamp(self,options))
         stamp:BusStamp = envelope.last("BusStamp")
-        envelope = stamp.bus.middleware_manager.run(envelope)
-        return envelope
+        _envelope = stamp.bus.run(envelope)
+        return _envelope
 
 
     def produce(self, envelope: Envelope) -> Envelope:
         """ envoi final en destination du broker message"""
-        options = {
-            "stamps": [
-                envelope.last("BusStamp"),
-                envelope.last("TransportStamp"),
-            ]
-        }
 
-        stamps = [ReceivedStamp()] + options.get("stamps", [])
-        envelope = Envelope(envelope.message, stamps)
-        stamp: BusStamp = envelope.last("BusStamp")
-        envelope = stamp.bus.middleware_manager.run(envelope)
-        return envelope
+        stamps = [
+            envelope.last("BusStamp"),
+            envelope.last("TransportStamp"),
+            ReceivedStamp()
+        ]
+
+        _envelope = Envelope(envelope.message, stamps)
+        stamp:BusStamp = _envelope.last("BusStamp")
+        _envelope = stamp.bus.run(_envelope)
+        #_envelope = _envelope.update(SkipReceivedStamp())
+        return _envelope
 
 
 class ClientServerTransport(TransportInterface):
@@ -172,7 +172,7 @@ class AMQPTransport(ClientServerTransport):
         envelope = Envelope(message, stamps)
         stamp:BusStamp = envelope.last("BusStamp")
         bus = stamp.bus
-        bus.middleware_manager.run(envelope)
+        bus.run(envelope)
 
     def dispatch(self, message, options):
         """
@@ -231,7 +231,7 @@ class AMQPTransport(ClientServerTransport):
         )
         stamp:BusStamp = envelope.last("BusStamp")
         bus:MessageBus = stamp.bus
-        envelope = bus.middleware_manager.run(envelope)
+        envelope = bus.run(envelope)
         return envelope
 
     def produce(self,envelope:Envelope) -> Envelope:
