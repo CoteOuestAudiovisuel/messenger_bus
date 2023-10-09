@@ -3,7 +3,11 @@ import logging
 import pathlib
 import re
 from collections import namedtuple
+from copy import deepcopy
 from typing import NamedTuple
+import uuid
+
+import uuid as uuid
 
 from .envelope import Envelope
 from .stamp import AmqpStamp, ResultStamp
@@ -20,31 +24,38 @@ class CommandInterfaceMeta(type):
 
     def __new__(metacls, cls, bases, attrs):
 
-        _new_dict = {"__dict__":{}}
+        _new_dict = {"__CommandInterfaceMeta_fields__":{"_uuid":None}}
+        _to_rem = []
         for k,v in attrs.items():
             if not k.startswith("__") and not k.endswith("__") and not callable(v):
-                _new_dict["__dict__"][k] = v
+                _new_dict["__CommandInterfaceMeta_fields__"][k] = v
+                _to_rem.append(k)
 
-        for k,v in _new_dict["__dict__"].items():
+        for k in _to_rem:
             del attrs[k]
 
         attrs.update(_new_dict)
-
         return type.__new__(metacls, cls, bases, attrs)
+
+    def __init__(self,cls,bases,attrs):
+        super().__init__(cls,bases,attrs)
+
+
 
 
 class CommandInterface(metaclass=CommandInterfaceMeta):
 
     def __init__(self, payload:dict={}):
         self._hydrate(payload)
+        self._uuid = uuid.uuid4()
 
     def _hydrate(self, payload:dict={}):
         for k,v in payload.items():
-            if k not in self:
+            if k not in self.__CommandInterfaceMeta_fields__:
                 raise AttributeError("'{}'".format(k))
 
             if getattr(self,k) is None:
-                self.__dict__[k] = v
+                setattr(self,k,v)
 
     def __eq__(self, other):
         for k,v in self.__dict__.items():
@@ -56,10 +67,13 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         return CommandInterface(payload)
 
     def __setattr__(self, key, value):
-        raise Exception("{} is immutable object".format(self.__class__.__name__))
+        if key not in self.__CommandInterfaceMeta_fields__:
+            raise Exception("{} is immutable object".format(self.__class__.__name__))
+
+        super().__setattr__(key,value)
 
     def __getattr__(self, k):
-        if k not in self.__dict__:
+        if k not in self.__CommandInterfaceMeta_fields__:
             raise AttributeError("'{}'".format(k))
         return self.__dict__.get(k)
 
@@ -73,10 +87,12 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         return json.dumps(self.__repr__())
 
     def __repr__(self):
-        return self.__dict__
+        _d = deepcopy(self.__dict__)
+        _d["_uuid"] = str(_d["_uuid"])
+        return _d
 
     def __contains__(self, k):
-        return True if k in self.__dict__ else False
+        return True if k in self.__CommandInterfaceMeta_fields__ else False
 
 class DefaultCommand(CommandInterface):
     action = None
