@@ -1,6 +1,7 @@
 # messenger_bus
 
-Welcome to the messenger_bus wiki!
+This project started when using symfony 5 messenger package with CQRS pattern on a project.
+I found this package very interesting and wanted to have something similar in python.
 
 # Intallation
 
@@ -119,17 +120,17 @@ to send a message in a bus use the code below.
     })
 
 
-if your handler return any value, you can get it back with the code below
+if your handler return any value, you can get it back, useful on query handler in CQRS pattern.
 
-    print(envelope.last("ResultStamp").result)
+    envelope.last("ResultStamp").result
 
 
 # Middlewares
 
-When dispatching a message throw the bus, it pass throw some builtin middlewares.
+When a message is sent via the bus, it is intercepted by built-in middleware.
 
-You can create your own middleware to manipulate the message.
-let's create a custom middleware to add a delay.
+You can create your own middleware to manipulate the message sent via the bus.
+Let's create a custom middleware to add a delay.
 
     from messenger_bus.middleware import MiddlewareInterface
     from messenger_bus.envelope import Envelope
@@ -149,6 +150,81 @@ let's create a custom middleware to add a delay.
 
 
 
-Adding this CustomMiddleware to a bus in the yaml config file will add a delay before dispatching the message.
+This middleware is added to a bus via the yaml configuration file.
+The custom middleware adds a delay before the message is sent on the bus.
+
+    ...
+    command.bus:
+        middleware:
+            - messenger_bus.middleware.SignatureMiddleware
+            - path.to.the.middleware.CustomMiddleware
+    ...
+
+# Bus
+
+Buses are created via the configuration file.
+You can create as many buses as you like.
+
+To dispatch a command on a specific bus, see the example below.
+
+    from messenger_bus.service_container import message_bus as bus
+
+    envelope = bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
+        "bus":"custom-bus-name",
+    })
+
+# Transport
+
+all commands are sent in a bus throw a transport. when the transport is not specified when dispatching a message in a bus, th default transport i used.
+the default transport is synchrone.
+
+you can add an asynchrone transport with the **AMQP Transport**
+other transports will be supported in later versions of this library.
+
+just like messaging buses, transports are configured via the yaml configuration file as follows:
 
 
+    framework:
+        messenger:
+           
+            transports:
+    
+                async:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: '%env(RABBITMQ_EXCHANGE_NAME)%'
+                            type: '%env(RABBITMQ_EXCHANGE_TYPE)%'
+                            durable: true
+    
+                        queue:
+                            name: '%env(RABBITMQ_QUEUE)%'
+                            binding: '%env(RABBITMQ_BINDING_KEYS)%'
+                            durable: true
+    
+                my_custom_transport:
+                    dsn: 'sync://'
+
+
+To dispatch a command using a specific transport, see the example below.
+
+
+    from messenger_bus.service_container import message_bus as bus
+
+    envelope = bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
+        "transport":"my_custom_transport",
+    })
+
+## Routing
+
+so that a command sent on the bus can be processed in a handler, 
+it should be indicated in the yaml configuration file, by which means it will be transported.
+
+Each command created must appear under the heading `routing` in the configuration file.
+
+    ...
+     routing:
+        'ChangeUserEmailCommand': my_custom_transport
+        'messenger_bus.message_handler.DefaultCommand': async
+        'CustomCommand': [my_custom_transport, async]
+    ...
