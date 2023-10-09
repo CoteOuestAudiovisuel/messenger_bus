@@ -50,12 +50,12 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         self._uuid = uuid.uuid4()
 
     def _hydrate(self, payload:dict={}):
+
         for k,v in payload.items():
             if k not in self.__CommandInterfaceMeta_fields__:
                 raise AttributeError("'{}'".format(k))
 
-            if getattr(self,k) is None:
-                setattr(self,k,v)
+            setattr(self,k,v)
 
     def __eq__(self, other):
         for k,v in self.__dict__.items():
@@ -68,6 +68,9 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
 
     def __setattr__(self, key, value):
         if key not in self.__CommandInterfaceMeta_fields__:
+            raise KeyError("{}".format(key))
+
+        if key in self.__dict__:
             raise Exception("{} is immutable object".format(self.__class__.__name__))
 
         super().__setattr__(key,value)
@@ -75,7 +78,7 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
     def __getattr__(self, k):
         if k not in self.__CommandInterfaceMeta_fields__:
             raise AttributeError("'{}'".format(k))
-        return self.__dict__.get(k)
+        return self.__dict__.get(k) if k in self.__dict__ else self.__CommandInterfaceMeta_fields__.get(k)
 
     def __setitem__(self, key, value):
         self.__setattr__(key,value)
@@ -87,9 +90,11 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         return json.dumps(self.__repr__())
 
     def __repr__(self):
+        _d1 = deepcopy(self.__CommandInterfaceMeta_fields__)
         _d = deepcopy(self.__dict__)
-        _d["_uuid"] = str(_d["_uuid"])
-        return _d
+        _d1.update(_d)
+        _d1["_uuid"] = str(_d1["_uuid"])
+        return _d1
 
     def __contains__(self, k):
         return True if k in self.__CommandInterfaceMeta_fields__ else False
