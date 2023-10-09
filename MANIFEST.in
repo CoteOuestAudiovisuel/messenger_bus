@@ -1,2 +1,2 @@
-include README.md
+include messenger_bus/README.md
 include messenger_bus/schema.yml
