@@ -1,11 +1,16 @@
 import json
 import logging
+import os
 import sys
+import time
+
+import pymongo
 
 from .message_handler import process_handlers
-from .stamp import (SignatureStamp, TransportStamp, BusStamp, StopPropagationStamp)
+from .stamp import (SignatureStamp, TransportStamp, BusStamp, StopPropagationStamp, DelayStamp, PymongoTransactionStamp)
 from .envelope import (Envelope)
 import hmac
+
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
@@ -46,8 +51,22 @@ class SignatureMiddleware(MiddlewareInterface):
             if not stamp:
                 body = str(envelope.message)
                 token = hmac.digest(b"zakes25649", body.encode(), digest="sha256").hex()
-
                 envelope = envelope.update(SignatureStamp("myProducerId",token))
+
+        return stack.next().handle(envelope, stack)
+
+
+class DelayMiddleware(MiddlewareInterface):
+    """
+    ajoute un delais avant execution du message
+    """
+    def __init__(self):
+       super().__init__(3)
+
+    def handle(self,envelope:Envelope, stack) -> Envelope:
+        stamp:DelayStamp = envelope.last("DelayStamp")
+        if stamp:
+           time.sleep(stamp.seconds)
 
         return stack.next().handle(envelope, stack)
 
@@ -102,6 +121,24 @@ class DispatchAfterCurrentBusMiddleware(MiddlewareInterface):
         return stack.next().handle(envelope, stack)
 
 
+class PymongoTransactionMiddleware(MiddlewareInterface):
+    """
+
+    """
+    def __init__(self):
+        super().__init__(2)
+
+    def handle(self,envelope:Envelope, stack) -> Envelope:
+        if envelope.last("ReceivedStamp") and not envelope.last("SkipReceivedStamp"):
+            client = pymongo.MongoClient(os.environ.get("DATABASE_URL", "mongodb://localhost:27017/"))
+            with client.start_session() as session:
+                with session.start_transaction():
+                    envelope = envelope.update(PymongoTransactionStamp(client,session))
+                    print("ouiiiiiiiiiiiiiiiiiiiiii --------------->")
+                    return stack.next().handle(envelope, stack)
+
+        return stack.next().handle(envelope, stack)
+
 
 class MiddlewareManager:
     """
@@ -113,6 +150,7 @@ class MiddlewareManager:
         self.iterable = None
 
         ms:list = [
+            DelayMiddleware(),
             DispatchAfterCurrentBusMiddleware(),
             SendMiddleware(),
             MessageHandlerMiddleware(),

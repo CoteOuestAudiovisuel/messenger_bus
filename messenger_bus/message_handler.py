@@ -70,7 +70,7 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         if key not in self.__CommandInterfaceMeta_fields__:
             raise KeyError("{}".format(key))
 
-        if key in self.__dict__:
+        if key != "_uuid" and key in self.__dict__:
             raise Exception("{} is immutable object".format(self.__class__.__name__))
 
         super().__setattr__(key,value)
@@ -143,6 +143,7 @@ def process_handlers(envelope:Envelope) -> Envelope:
     bus = stamp.bus
     message = envelope.message
 
+
     logger.debug(transport_attributes)
 
     _handlers_selected = []
@@ -200,7 +201,6 @@ def process_handlers(envelope:Envelope) -> Envelope:
 
         if transport_attributes.get("bus") and p.get("bus") and p.get("bus") != transport_attributes.get("bus"):
             criterias = {k:False for k,v in criterias.items()}
-
 
         # check de validation globale
         if len(criterias):

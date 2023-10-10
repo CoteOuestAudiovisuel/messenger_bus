@@ -35,11 +35,11 @@ class TransportInterface:
     def __init__(self, definition:TransportDefinitionInterface):
         self.definition = definition
 
-    def dispatch(self, message,options):
+    def dispatch(self, message,options) -> Envelope:
         """ permet d'envoyer un message dans le bus"""
         raise NotImplementedError
 
-    def produce(self, envelope: Envelope):
+    def produce(self, envelope: Envelope) -> Envelope:
         """ envoi final en destination du broker message"""
         raise NotImplementedError
 
@@ -90,7 +90,7 @@ class ClientServerTransport(TransportInterface):
     def create_connection(self, *args,**kwargs):
         raise NotImplementedError
 
-    def _send(self, *args, **kwargs):
+    def _send(self, *args, **kwargs) -> Envelope:
         """ envoi un message """
         raise NotImplementedError
 
@@ -140,7 +140,7 @@ class AMQPTransport(ClientServerTransport):
         logger.debug("Binding queue to exchange...OK")
         return (connection, channel, self.definition.options.get('queue').get("name"))
 
-    def _send(self, message, options: dict):
+    def _send(self, message, options: dict) -> Envelope:
         """ envoi un message """
 
         routing_key = options.get("routing_key", "")
@@ -172,9 +172,10 @@ class AMQPTransport(ClientServerTransport):
         envelope = Envelope(message, stamps)
         stamp:BusStamp = envelope.last("BusStamp")
         bus = stamp.bus
-        bus.run(envelope)
+        envelope = bus.run(envelope)
+        return envelope
 
-    def dispatch(self, message, options):
+    def dispatch(self, message, options) -> Envelope:
         """
         ceci est la methode public pour envoyer un message dans le bus
         format de message envoyer est le json
@@ -190,7 +191,7 @@ class AMQPTransport(ClientServerTransport):
         }
         default_properties.update(properties)
         options["properties"] = default_properties
-        self._send(message, options)
+        return self._send(message, options)
 
     def receive(self, body: str,options):
         """

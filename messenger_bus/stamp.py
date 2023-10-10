@@ -67,6 +67,23 @@ class SkipReceivedStamp(NonSendableStampInterface):
         super().__init__()
 
 
+class DelayStamp(NonSendableStampInterface):
+    """
+    Stamp indiquant un delay avant la transmission du message.
+    """
+    def __init__(self,seconds:int):
+        super().__init__()
+        self.seconds = seconds
+
+
+class PymongoTransactionStamp(NonSendableStampInterface):
+    """
+    Stamp indiquant la presence d'une transaction mongodb.
+    """
+    def __init__(self,client,session):
+        super().__init__()
+        self.client = client
+        self.session = session
 
 class DispatchAfterCurrentBusStamp(NonSendableStampInterface):
     """
