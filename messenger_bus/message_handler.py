@@ -14,7 +14,7 @@ from .stamp import AmqpStamp, ResultStamp
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
-logger = logging.getLogger('messenger')
+logger = logging.getLogger('handler')
 logger.setLevel(logging.DEBUG)
 
 _handlers = []
@@ -143,7 +143,7 @@ def process_handlers(envelope:Envelope) -> Envelope:
     bus = stamp.bus
     message = envelope.message
 
-    print(transport_attributes)
+    logger.debug(transport_attributes)
 
     _handlers_selected = []
     for p in _handlers:
@@ -180,6 +180,7 @@ def process_handlers(envelope:Envelope) -> Envelope:
                     criterias["command"] = True
                     print(dir(p["controller"]),p["controller"].__annotations__)
 
+
         if p["type"] == "class":
             instance_ = p["controller"]()
             for name,inst in instance_.__call__.__annotations__.items():
@@ -194,10 +195,10 @@ def process_handlers(envelope:Envelope) -> Envelope:
                     break
 
         # critères d'invalidité
-        if transport_attributes.get("transport") and p.get("transport") != transport_attributes.get("transport"):
+        if transport_attributes.get("transport") and p.get("transport") and p.get("transport") != transport_attributes.get("transport"):
             criterias = {k:False for k,v in criterias.items()}
 
-        if transport_attributes.get("bus") and p.get("bus") != transport_attributes.get("bus"):
+        if transport_attributes.get("bus") and p.get("bus") and p.get("bus") != transport_attributes.get("bus"):
             criterias = {k:False for k,v in criterias.items()}
 
 
@@ -223,6 +224,7 @@ def process_handlers(envelope:Envelope) -> Envelope:
             if amqpStamp:
                 properties = amqpStamp.attributes.__dict__
 
+        properties["envelope"] = envelope
         argv = [envelope.message]
         argc = 1
         if p["type"] == "class":
