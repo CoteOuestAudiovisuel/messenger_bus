@@ -57,3 +57,5 @@ message_bus = MessageBusManager(bus_defs)
 
 transport_defs = framework_template["framework"]["messenger"]["transports"]
 transport_manager = TransportManager(transport_defs)
+
+

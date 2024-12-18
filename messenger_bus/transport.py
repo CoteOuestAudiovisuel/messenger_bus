@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import sys
 
@@ -329,33 +330,36 @@ class AMQPTransport(ClientServerTransport):
 
         print(" [x] %r:%r" % (method.routing_key, body))
         # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
-        options = {
-            "properties": properties.__dict__
-        }
-        self.receive(body.decode(), options)
+        # options = {
+        #     "properties": properties.__dict__
+        # }
+        # self.receive(body.decode(), options)
+        self.receive(body.decode(), properties.__dict__)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-
         try:
-            pass
+
+            print(" [x] %r:%r" % (method.routing_key, body))
+            options = {
+                "properties": properties.__dict__
+            }
+            self.receive(body.decode(), options)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logger.debug(e)
-            # ch.basic_ack(delivery_tag=method.delivery_tag)
-            #
-            # try:
-            #     message = json.loads(body.decode())
-            #     headers = {"x-retry": True, "x-retry-count": 0}
-            #
-            #     if "x-retry-count" in properties.headers:
-            #         headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
-            #
-            #     options = {
-            #         "routing_key":method.routing_key,
-            #         "properties":{"headers": headers}
-            #     }
-            #     message_bus.dispatch(message, options)
-            # except:
-            #     pass
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+            try:
+                message = json.loads(body.decode())
+                headers = {"x-retry": True, "x-retry-count": 0}
+
+                if "x-retry-count" in properties.headers:
+                    headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
+
+                self.dispatch(message, method.routing_key, {"headers": headers})
+            except:
+                pass
+
 
 
 class TransportManager:

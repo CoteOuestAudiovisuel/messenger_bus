@@ -4,6 +4,7 @@ import logging
 
 import pika
 from .service_container import message_bus
+from .transport import TransportInterface, ClientServerTransport
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
@@ -12,8 +13,9 @@ logger.setLevel(logging.DEBUG)
 
 class WorkerInterface:
 
-    def __init__(self):
-        pass
+    def __init__(self, transport_name:str):
+        from .service_container import transport_manager
+        self._transport: ClientServerTransport = transport_manager.get(transport_name)
 
     def _connect(self):
         """ etablit la connection avec le serveur AMQP"""
@@ -36,8 +38,9 @@ class DefaultWorker(WorkerInterface):
         self.queue_name = None
         self.exchange_name = None
 
+
     def _connect(self):
-        self.connection, self.channel, self.queue_name, self.exchange_name = createConnection()
+        self.connection, self.channel, self.queue_name, self.exchange_name = self._transport.create_connection()
         return self
 
     async def consume(self):
