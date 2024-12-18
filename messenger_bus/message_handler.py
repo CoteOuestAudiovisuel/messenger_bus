@@ -38,8 +38,6 @@ class CommandInterfaceMeta(type):
         super().__init__(cls,bases,attrs)
 
 
-
-
 class CommandInterface(metaclass=CommandInterfaceMeta):
 
     def __init__(self, payload:dict={}):

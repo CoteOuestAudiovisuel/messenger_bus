@@ -1,4 +1,5 @@
 import asyncio
+import queue
 import sys
 
 from .envelope import Envelope
@@ -21,6 +22,7 @@ class MessageBusInterface:
         #self.middleware_manager = MiddlewareManager(definition.middlewares)
         self.definition = definition
         self._events = []
+        self._queue: queue.PriorityQueue = queue.PriorityQueue(maxsize=0)
 
     def dispatch(self, message, options:dict):
         """ permet d'envoyer un message dans le bus"""
@@ -32,15 +34,29 @@ class MessageBusInterface:
         return _item.run(envelope)
 
     def has_event(self) -> bool:
+        return not self._queue.empty()
         return len(self._events) != 0
 
     def add_event(self, item:Envelope):
         if not isinstance(item,Envelope):
             raise TypeError(item.__class__.__name__)
         self._events.append(item)
+        self._queue.put((100, item))
 
     def remove_event(self, item: Envelope):
         self._events.remove(item)
+
+    async def consume(self):
+
+        while True:
+            try:
+                _envelope: Envelope = self._queue.get_nowait()
+                self.remove_event(_envelope)
+                _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
+                envelope = self.run(_envelope)
+                self._queue.task_done()
+            except Exception as e:
+                break
 
 
 class MessageBus(MessageBusInterface):
@@ -76,7 +92,7 @@ class MessageBusManager:
     le bus manager, il sert a orchestrer tout les bus
     """
     default_bus_name = "messenger.default.bus"
-    def __init__(self, bus_defs: list):
+    def __init__(self, bus_defs: dict):
         self._buses = {}
         self._default_bus_name = "messenger.default.bus"
 
@@ -118,6 +134,7 @@ class MessageBusManager:
         :param options:
         :return:
         """
+        from .service_container import transport_manager, framework_template
 
         if type(message) == dict:
             message = DefaultCommand(message)
@@ -125,7 +142,6 @@ class MessageBusManager:
             raise Exception("message type can only be 'CommandInterface' or dict")
 
 
-        from .service_container import transport_manager, framework_template
         transports:list = []
 
         bus = [i for k,i in self._buses.items() if i.definition.name == options.get("bus",self._default_bus_name)]
@@ -133,11 +149,8 @@ class MessageBusManager:
             raise Exception("Bus '{}' not found".format(options.get("bus")))
         bus = bus.pop()
 
+        # on doit deviner le transport a utiliser à partir du fichier de configuration messenger.yml
 
-       # if type(message) == dict:
-        """
-        on doit deviner le transport a utiliser à partir du fichier de configuration messenger.yml
-        """
         for cls, v in framework_template["framework"]["messenger"]["routing"].items():
             _message_class = "{module}.{classname}".format(module=message.__module__,classname=message.__class__.__name__)
             if cls == _message_class:
@@ -308,11 +321,14 @@ class MessageBusManager:
         # verifier les events en attente de dispatching
         for _name, _bus in self._buses.items():
             if _bus.has_event():
-                while True:
-                    try:
-                        _envelope:Envelope = next(iter(_bus._events))
-                        _bus.remove_event(_envelope)
-                        _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
-                        envelope = _bus.run(_envelope)
-                    except StopIteration as e:
-                        break
+                await asyncio.create_task(_bus.consume())
+
+                # while True:
+                #     try:
+                #         _envelope:Envelope = next(iter(_bus._events))
+                #         _bus.remove_event(_envelope)
+                #         _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
+                #         envelope = _bus.run(_envelope)
+                #     except StopIteration as e:
+                #         break
+
