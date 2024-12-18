@@ -343,14 +343,13 @@ class AMQPTransport(ClientServerTransport):
 
             try:
                 message = json.loads(body.decode())
-                headers = {"x-retry": True, "x-retry-count": 0}
+                headers = {"x-retry": True, "x-retry-count": 0, "x-routing-key":method.routing_key}
 
                 if "x-retry-count" in properties.headers:
                     headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
                 options = {
                     "properties":{
-                        "x-routing-key":method.routing_key,
                         "headers": headers
                     }
                 }
