@@ -386,7 +386,7 @@ class TransportManager:
             v:list = dsn.split("://")
             protocol = v.pop(0).lower()
 
-            if protocol not in ["amqp","sync"]:
+            if protocol not in ["amqp","amqps","sync"]:
                 raise Exception("transport {} not supported".format(protocol))
 
             transport:TransportInterface = None
