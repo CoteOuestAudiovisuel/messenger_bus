@@ -390,7 +390,7 @@ class TransportManager:
                 raise Exception("transport {} not supported".format(protocol))
 
             transport:TransportInterface = None
-            if protocol == "amqp":
+            if protocol in ["amqp","amqps"]:
                 transport = AMQPTransport(AMQPTransportDefinition(definition))
             elif protocol == "sync":
                 transport = SyncTransport(TransportDefinitionInterface(definition))
