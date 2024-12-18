@@ -99,6 +99,9 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
     def __contains__(self, k):
         return True if k in self.__CommandInterfaceMeta_fields__ else False
 
+    def get_value(self) -> dict:
+        return self.__repr__()
+
 class DefaultCommand(CommandInterface):
     action = None
     payload = None

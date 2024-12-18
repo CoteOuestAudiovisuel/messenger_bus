@@ -8,6 +8,7 @@ I found this package very interesting and wanted to have something similar in py
     pip install messenger_bus
 
 
+![Image from Symfony docs](https://symfony.com/doc/current/_images/components/messenger/overview.svg)
 # Command class
 
 All command class must inherits `messenger_bus.command.CommandInterface`
@@ -165,6 +166,13 @@ The custom middleware adds a delay before the message is sent on the bus.
 Buses are created via the configuration file.
 You can create as many buses as you like.
 
+When using the message bus, the following middleware are configured for you:
+
+`SendMiddleware` (enables synchronous and asynchronous processing, logs the processing of your messages if you provide a logger)
+
+`MessageHandlerMiddleware` (calls the registered handler(s))
+
+
 To dispatch a command on a specific bus, see the example below.
 
     from messenger_bus.service_container import message_bus as bus
@@ -228,3 +236,52 @@ Each command created must appear under the heading `routing` in the configuratio
         'messenger_bus.message_handler.DefaultCommand': async
         'CustomCommand': [my_custom_transport, async]
     ...
+
+
+# Adding Metadata to Messages (Envelopes)
+
+If you need to add metadata or some configuration to a message, use `stamps` option key in le second argument when dispatching message. 
+For example, to set the serialization groups used when the message goes through the transport layer.
+
+    from messenger_bus.service_container import message_bus as bus
+
+    envelope = bus.dispatch(ChangeUserEmailCommand({"email":"test@test.test"}), {
+        "stamps":[
+            DelayStamp(30)
+        ],
+    })
+
+Here are some important envelope stamps that are shipped with the Messenger Bus:
+
+`DelayStamp`, to delay handling of an asynchronous message.
+
+`DispatchAfterCurrentBusStamp`, to make the message be handled after the current bus has executed.
+
+`HandledStamp`, a stamp that marks the message as handled by a specific handler. Allows accessing the handler returned value and the handler name.
+
+`ReceivedStamp`, an internal stamp that marks the message as received from a transport.
+
+`SentStamp`, a stamp that marks the message as sent by a specific sender.
+
+
+Instead of dealing directly with the messages in the middleware you receive the envelope. Hence you can inspect the envelope content and its stamps, or add any:
+
+    from messenger_bus.middleware import MiddlewareInterface
+
+    class CustomMiddleware(MiddlewareInterface):
+
+        def __init__(self):
+            super().__init__(0)
+    
+        def handle(self,envelope:Envelope, stack) -> Envelope:
+    
+            if envelope.last("ReceivedStamp"):
+                envelope = envelope.update("AnotherStamp")
+    
+            return stack.next().handle(envelope,stack)
+
+
+The above example will forward the message to the next middleware with an additional stamp if the message has just been received (i.e. has at least one `ReceivedStamp` stamp). You can create your own stamps by implementing `StampInterface`.
+
+If you want to examine all stamps on an envelope, use the `envelope.all()` method, which returns all stamps grouped by type (FQCN). Alternatively, you can iterate through all stamps of a specific type by using the FQCN as first parameter of this method (e.g. `envelope.all('ReceivedStamp')`).
+
