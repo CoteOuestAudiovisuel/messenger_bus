@@ -5,9 +5,6 @@ import re
 from collections import namedtuple
 from copy import deepcopy
 from typing import NamedTuple
-import uuid
-
-import uuid as uuid
 
 from .envelope import Envelope
 from .stamp import AmqpStamp, ResultStamp
@@ -24,7 +21,7 @@ class CommandInterfaceMeta(type):
 
     def __new__(metacls, cls, bases, attrs):
 
-        _new_dict = {"__CommandInterfaceMeta_fields__":{"_uuid":None}}
+        _new_dict = {"__CommandInterfaceMeta_fields__":{}}
         _to_rem = []
         for k,v in attrs.items():
             if not k.startswith("__") and not k.endswith("__") and not callable(v):
@@ -47,7 +44,6 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
 
     def __init__(self, payload:dict={}):
         self._hydrate(payload)
-        self._uuid = uuid.uuid4()
 
     def _hydrate(self, payload:dict={}):
 
@@ -70,7 +66,7 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         if key not in self.__CommandInterfaceMeta_fields__:
             raise KeyError("{}".format(key))
 
-        if key != "_uuid" and key in self.__dict__:
+        if  key in self.__dict__:
             raise Exception("{} is immutable object".format(self.__class__.__name__))
 
         super().__setattr__(key,value)
@@ -93,7 +89,6 @@ class CommandInterface(metaclass=CommandInterfaceMeta):
         _d1 = deepcopy(self.__CommandInterfaceMeta_fields__)
         _d = deepcopy(self.__dict__)
         _d1.update(_d)
-        _d1["_uuid"] = str(_d1["_uuid"])
         return _d1
 
     def __contains__(self, k):
