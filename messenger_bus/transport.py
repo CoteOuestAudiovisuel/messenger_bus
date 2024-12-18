@@ -194,12 +194,11 @@ class AMQPTransport(ClientServerTransport):
         options["properties"] = default_properties
         return self._send(message, options)
 
-    def receive(self, body: str,options):
+    def receive(self, body: str,properties):
         """
         reception d'un message en provenance du serveur,
         il est aussitôt envoyé dans le bus pour traitement
         """
-        properties = options.get("properties",{})
         from .service_container import serializer
         from .stamp import BusStamp
         from .bus import MessageBus
@@ -229,7 +228,7 @@ class AMQPTransport(ClientServerTransport):
         attr.cluster_id = properties["cluster_id"] if "cluster_id" in properties else attr.cluster_id
 
         envelope = envelope.update(
-            AmqpStamp(properties["headers"]["x-routing-key"], attributes=attr),
+            AmqpStamp(properties["headers"].get("x-routing-key",""), attributes=attr),
             ReceivedStamp()
         )
         stamp:BusStamp = envelope.last("BusStamp")

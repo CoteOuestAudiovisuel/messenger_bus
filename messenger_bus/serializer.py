@@ -1,10 +1,16 @@
 import json
+import logging
 
 from .bus import MessageBus
 from .envelope import Envelope
 from .message_handler import  DefaultCommand
 from .stamp import NonSendableStampInterface, AmqpStamp, SignatureStamp, BusStamp, TransportStamp
 from .transport import ClientServerTransport
+
+FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
+logging.basicConfig(format=FORMAT)
+logger = logging.getLogger('messenger_serializer')
+logger.setLevel(logging.DEBUG)
 
 class SerializerInterface:
 
