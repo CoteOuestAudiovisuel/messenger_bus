@@ -206,8 +206,9 @@ class AMQPTransport(ClientServerTransport):
 
         encoded_envelope = {
             "body": body,
-            "headers": properties["headers"],
+            "headers": properties.get("headers",{}),
         }
+
         envelope = serializer.decode(encoded_envelope)
 
         attr = AMQPBasicProperties()
