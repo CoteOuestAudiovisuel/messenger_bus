@@ -22,7 +22,7 @@ class MessageBusInterface:
         #self.middleware_manager = MiddlewareManager(definition.middlewares)
         self.definition = definition
         self._events = []
-        self._queue: queue.PriorityQueue = queue.PriorityQueue(maxsize=0)
+        self._queue: queue.Queue = queue.Queue(maxsize=0)
 
     def dispatch(self, message, options:dict):
         """ permet d'envoyer un message dans le bus"""
@@ -41,7 +41,7 @@ class MessageBusInterface:
         if not isinstance(item,Envelope):
             raise TypeError(item.__class__.__name__)
         self._events.append(item)
-        self._queue.put((100, item))
+        self._queue.put(item)
 
     def remove_event(self, item: Envelope):
         self._events.remove(item)
@@ -51,11 +51,14 @@ class MessageBusInterface:
         while True:
             try:
                 _envelope: Envelope = self._queue.get_nowait()
+                print(_envelope)
+
                 self.remove_event(_envelope)
                 _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
                 envelope = self.run(_envelope)
                 self._queue.task_done()
             except Exception as e:
+                print(e)
                 break
 
 
