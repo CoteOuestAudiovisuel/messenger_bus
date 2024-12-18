@@ -21,7 +21,6 @@ class MessageBusInterface:
     def __init__(self, definition:MessageBusInterfaceDefinition):
         #self.middleware_manager = MiddlewareManager(definition.middlewares)
         self.definition = definition
-        self._events = []
         self._queue: queue.Queue = queue.Queue(maxsize=0)
 
     def dispatch(self, message, options:dict):
@@ -33,27 +32,17 @@ class MessageBusInterface:
         _item = MiddlewareManager(self.definition.middlewares)
         return _item.run(envelope)
 
-    def has_event(self) -> bool:
-        return not self._queue.empty()
-        return len(self._events) != 0
 
-    def add_event(self, item:Envelope):
+    def queue(self, item:Envelope):
         if not isinstance(item,Envelope):
             raise TypeError(item.__class__.__name__)
-        self._events.append(item)
         self._queue.put(item)
-
-    def remove_event(self, item: Envelope):
-        self._events.remove(item)
 
     async def consume(self):
 
         while True:
             try:
                 _envelope: Envelope = self._queue.get_nowait()
-                print(_envelope)
-
-                self.remove_event(_envelope)
                 _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
                 envelope = self.run(_envelope)
                 self._queue.task_done()
@@ -109,7 +98,6 @@ class MessageBusManager:
         for k,bus_def in bus_defs.items():
             bus_def['name'] = k
             self.add(bus_def)
-
 
 
     def __getitem__(self, item):
@@ -323,15 +311,5 @@ class MessageBusManager:
     async def dispatch_pending_events(self):
         # verifier les events en attente de dispatching
         for _name, _bus in self._buses.items():
-            if _bus.has_event():
-                await asyncio.create_task(_bus.consume())
-
-                # while True:
-                #     try:
-                #         _envelope:Envelope = next(iter(_bus._events))
-                #         _bus.remove_event(_envelope)
-                #         _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
-                #         envelope = _bus.run(_envelope)
-                #     except StopIteration as e:
-                #         break
+            await asyncio.create_task(_bus.consume())
 

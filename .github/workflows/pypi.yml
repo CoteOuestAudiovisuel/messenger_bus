@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  TAG: 1.0.18
+  TAG: 1.0.19
   NAME: messenger_bus
 
 jobs:

@@ -115,7 +115,7 @@ class DispatchAfterCurrentBusMiddleware(MiddlewareInterface):
 
         if envelope.last("DispatchAfterCurrentBusStamp") and envelope.last("SendingStamp"):
             stamp:BusStamp = envelope.last("BusStamp")
-            stamp.bus.add_event(envelope)
+            stamp.bus.queue(envelope)
             return envelope
 
         return stack.next().handle(envelope, stack)
