@@ -330,12 +330,6 @@ class AMQPTransport(ClientServerTransport):
 
         print(" [x] %r:%r" % (method.routing_key, body))
         # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
-        options = {
-            "properties": properties.__dict__
-        }
-        self.receive(body.decode(), options)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-
         try:
 
             print(" [x] %r:%r" % (method.routing_key, body))
