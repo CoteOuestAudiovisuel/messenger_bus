@@ -328,15 +328,14 @@ class AMQPTransport(ClientServerTransport):
 
     def _on_message(self, ch, method, properties, body):
 
-        print(" [x] %r:%r" % (method.routing_key, body))
-        # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
         try:
-
             print(" [x] %r:%r" % (method.routing_key, body))
-            options = {
-                "properties": properties.__dict__
-            }
-            self.receive(body.decode(), options)
+            # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
+            try:
+                self.receive(body.decode(), properties.__dict__)
+            except Exception as e:
+                logger.debug(e)
+
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logger.debug(e)
@@ -349,7 +348,13 @@ class AMQPTransport(ClientServerTransport):
                 if "x-retry-count" in properties.headers:
                     headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
-                self.dispatch(message, method.routing_key, {"headers": headers})
+                options = {
+                    "properties":{
+                        "x-routing-key":method.routing_key,
+                        "headers": headers
+                    }
+                }
+                self.dispatch(message,options)
             except:
                 pass
 
