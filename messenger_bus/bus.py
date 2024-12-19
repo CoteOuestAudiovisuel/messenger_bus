@@ -38,7 +38,7 @@ class MessageBusInterface:
             raise TypeError(item.__class__.__name__)
         self._queue.put(item)
 
-    async def consume(self):
+    def consume(self):
 
         while True:
             try:
@@ -311,5 +311,5 @@ class MessageBusManager:
     def dispatch_pending_events(self):
         # verifier les events en attente de dispatching
         for _name, _bus in self._buses.items():
-            await asyncio.create_task(_bus.consume())
+            _bus.consume()
 
