@@ -338,7 +338,7 @@ class AMQPTransport(ClientServerTransport):
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             from .service_container import message_bus
-            from .service_container import transport_manager, class_loader
+            from .service_container import class_loader
 
             logger.debug(e)
             ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -380,9 +380,6 @@ class AMQPTransport(ClientServerTransport):
                         setattr(cmd, k, v)
                     body = cmd
 
-                # self.produce(envelope)
-
-                logger.debug(body,options)
                 message_bus.dispatch(body,options)
             except Exception as ee:
                 logger.debug(ee)

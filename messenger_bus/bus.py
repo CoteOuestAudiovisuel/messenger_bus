@@ -304,11 +304,11 @@ class MessageBusManager:
 
 
         if _result and not _result.last("DispatchAfterCurrentBusStamp"):
-            asyncio.run(self.dispatch_pending_events())
+            self.dispatch_pending_events()
 
         return _result
 
-    async def dispatch_pending_events(self):
+    def dispatch_pending_events(self):
         # verifier les events en attente de dispatching
         for _name, _bus in self._buses.items():
             await asyncio.create_task(_bus.consume())
