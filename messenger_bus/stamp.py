@@ -134,3 +134,13 @@ class SignatureStamp(StampInterface):
         super(SignatureStamp, self).__init__()
         self.producerId = producerId
         self.payloadToken = payloadToken
+
+
+class EntityStamp(StampInterface):
+    """
+    Stamp ajoutant la signature numeric des données transportées
+    """
+    def __init__(self, entity_id:str, entity_version:int):
+        super(EntityStamp, self).__init__()
+        self.entity_id = entity_id
+        self.entity_version = entity_version
