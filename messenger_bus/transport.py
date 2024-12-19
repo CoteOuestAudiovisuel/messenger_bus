@@ -176,11 +176,12 @@ class AMQPTransport(ClientServerTransport):
         envelope = bus.run(envelope)
         return envelope
 
-    def dispatch(self, message, properties) -> Envelope:
+    def dispatch(self, message, options) -> Envelope:
         """
         ceci est la methode public pour envoyer un message dans le bus
         format de message envoyer est le json
         """
+        properties = options.get("properties",{})
 
         default_properties = {
             "content_type": "application/json",
@@ -188,7 +189,7 @@ class AMQPTransport(ClientServerTransport):
             "headers": {}
         }
         default_properties.update(properties)
-        options = {"properties":default_properties}
+        options["properties"] = default_properties
         return self._send(message, options)
 
     def receive(self, body: str,properties):
@@ -348,8 +349,12 @@ class AMQPTransport(ClientServerTransport):
                     _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
                 _props["headers"].update(_headers)
-                logger.debug(_props)
-                self.dispatch(message,_props)
+
+                envelope = serializer.decode({"body":message,"headers":_props["headers"]})
+                self.produce(envelope)
+
+                # logger.debug(_props)
+                # self.dispatch(message,options)
             except Exception as ee:
                 logger.debug(ee)
 
