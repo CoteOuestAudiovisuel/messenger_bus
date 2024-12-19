@@ -360,7 +360,7 @@ class AMQPTransport(ClientServerTransport):
                 }
 
                 if "CommandInterface" in _props["headers"]:
-                    _module = headers.get("CommandInterface").split(".")
+                    _module = _props["headers"].get("CommandInterface").split(".")
                     _class_name = _module.pop()
                     _module = ".".join(_module)
 
@@ -383,7 +383,7 @@ class AMQPTransport(ClientServerTransport):
                 # self.produce(envelope)
 
                 logger.debug(body,options)
-                #message_bus.dispatch(body,options)
+                message_bus.dispatch(body,options)
             except Exception as ee:
                 logger.debug(ee)
 
