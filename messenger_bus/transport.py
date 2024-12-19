@@ -348,7 +348,7 @@ class AMQPTransport(ClientServerTransport):
                 if "x-retry-count" in properties.headers:
                     _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
-                properties["headers"].update(_headers)
+                properties.headers.update(_headers)
 
                 options = {
                     "properties":properties,
