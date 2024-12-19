@@ -337,12 +337,15 @@ class AMQPTransport(ClientServerTransport):
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
-            from .service_container import serializer
+            from .service_container import message_bus
+            from .service_container import transport_manager, class_loader
+
             logger.debug(e)
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
             try:
                 _props = properties.__dict__
+                message = json.loads(body.decode())
                 _headers = {"x-retry": True, "x-retry-count": 0}
 
                 if "x-retry-count" in properties.headers:
@@ -350,11 +353,37 @@ class AMQPTransport(ClientServerTransport):
 
                 _props["headers"].update(_headers)
 
-                envelope = serializer.decode({"body":body.decode(),"headers":_props["headers"]})
-                self.produce(envelope)
+                options = {
+                    "properties":_props,
+                    "bus": _props["headers"].get("BusStamp","event.bus"),
+                    "transport": _props["headers"].get("TransportStamp", "async"),
+                }
 
-                # logger.debug(_props)
-                # self.dispatch(message,options)
+                if "CommandInterface" in _props["headers"]:
+                    _module = headers.get("CommandInterface").split(".")
+                    _class_name = _module.pop()
+                    _module = ".".join(_module)
+
+                    try:
+                        instance = class_loader(_module, _class_name)
+                        instance._hydrate(message)
+                        body = instance
+                    except:
+                        cmd = DefaultCommand()
+                        for k, v in message.items():
+                            setattr(cmd, k, v)
+                        body = cmd
+
+                else:
+                    cmd = DefaultCommand()
+                    for k, v in message.items():
+                        setattr(cmd, k, v)
+                    body = cmd
+
+                # self.produce(envelope)
+
+                logger.debug(_props)
+                message_bus.dispatch(body,options)
             except Exception as ee:
                 logger.debug(ee)
 
