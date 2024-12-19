@@ -327,14 +327,9 @@ class AMQPTransport(ClientServerTransport):
     def _on_message(self, ch, method, properties, body):
 
         try:
-            raise Exception("Crash test")
             print(" [x] %r:%r" % (method.routing_key, body))
             # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
-            try:
-                self.receive(body.decode(), properties.__dict__)
-            except Exception as e:
-                logger.debug(e)
-
+            self.receive(body.decode(), properties.__dict__)
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             from .service_container import message_bus
