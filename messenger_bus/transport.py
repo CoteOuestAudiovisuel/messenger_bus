@@ -176,21 +176,19 @@ class AMQPTransport(ClientServerTransport):
         envelope = bus.run(envelope)
         return envelope
 
-    def dispatch(self, message, options) -> Envelope:
+    def dispatch(self, message, properties) -> Envelope:
         """
         ceci est la methode public pour envoyer un message dans le bus
         format de message envoyer est le json
         """
-        properties = options.get("properties",{})
 
-        headers = {}
         default_properties = {
             "content_type": "application/json",
             "delivery_mode": pika.spec.PERSISTENT_DELIVERY_MODE,
             "headers": {}
         }
         default_properties.update(properties)
-        options["properties"] = default_properties
+        options = {"properties":default_properties}
         return self._send(message, options)
 
     def receive(self, body: str,properties):
@@ -350,14 +348,8 @@ class AMQPTransport(ClientServerTransport):
                     _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
                 _props["headers"].update(_headers)
-
-                options = {
-                    "properties":_props,
-                    "bus": "event.bus",
-                }
-
                 logger.debug(_props)
-                self.dispatch(message,options)
+                self.dispatch(message,_props)
             except Exception as ee:
                 logger.debug(ee)
 
