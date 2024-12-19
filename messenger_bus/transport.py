@@ -355,8 +355,8 @@ class AMQPTransport(ClientServerTransport):
                 }
                 self.dispatch(message,options)
                 exit()
-            except:
-                pass
+            except Exception as ee:
+                logger.debug(ee)
 
 
 
