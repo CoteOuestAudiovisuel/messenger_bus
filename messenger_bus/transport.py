@@ -131,8 +131,8 @@ class AMQPTransport(ClientServerTransport):
         )
         logger.debug("Creation channel, exchange, queue...OK")
 
-        logger.debug("Binding queue to exchange...OK")
-        for binding_key in self.definition.options.get('queue').get("binding"):
+        logger.debug("Binding queue to exchange...")
+        for binding_key in self.definition.options.get('queue').get("binding").split(" "):
             channel.queue_bind(
                 exchange=self.definition.options.get('exchange').get("name"),
                 queue=self.definition.options.get('queue').get("name"),
