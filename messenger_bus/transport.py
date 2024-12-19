@@ -337,6 +337,7 @@ class AMQPTransport(ClientServerTransport):
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
+            from .service_container import serializer
             logger.debug(e)
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
