@@ -343,7 +343,6 @@ class AMQPTransport(ClientServerTransport):
 
             try:
                 _props = properties.__dict__
-                message = json.loads(body.decode())
                 _headers = {"x-retry": True, "x-retry-count": 0}
 
                 if "x-retry-count" in properties.headers:
@@ -351,7 +350,7 @@ class AMQPTransport(ClientServerTransport):
 
                 _props["headers"].update(_headers)
 
-                envelope = serializer.decode({"body":message,"headers":_props["headers"]})
+                envelope = serializer.decode({"body":body.decode(),"headers":_props["headers"]})
                 self.produce(envelope)
 
                 # logger.debug(_props)
