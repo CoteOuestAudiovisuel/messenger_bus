@@ -382,8 +382,8 @@ class AMQPTransport(ClientServerTransport):
 
                 # self.produce(envelope)
 
-                logger.debug(_props)
-                message_bus.dispatch(body,options)
+                logger.debug(body,options)
+                #message_bus.dispatch(body,options)
             except Exception as ee:
                 logger.debug(ee)
 
