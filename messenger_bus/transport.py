@@ -342,16 +342,17 @@ class AMQPTransport(ClientServerTransport):
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
             try:
+                _props = properties.__dict__
                 message = json.loads(body.decode())
                 _headers = {"x-retry": True, "x-retry-count": 0}
 
                 if "x-retry-count" in properties.headers:
                     _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
 
-                properties.headers.update(_headers)
+                _props["headers"].update(_headers)
 
                 options = {
-                    "properties":properties,
+                    "properties":_props,
                 }
                 self.dispatch(message,options)
                 exit()
