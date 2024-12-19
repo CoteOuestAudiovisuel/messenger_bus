@@ -353,9 +353,11 @@ class AMQPTransport(ClientServerTransport):
 
                 options = {
                     "properties":_props,
+                    "bus": "event.bus",
                 }
+
+                logger.debug(_props)
                 self.dispatch(message,options)
-                exit()
             except Exception as ee:
                 logger.debug(ee)
 
