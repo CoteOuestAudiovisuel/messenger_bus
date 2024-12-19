@@ -181,14 +181,13 @@ class AMQPTransport(ClientServerTransport):
         ceci est la methode public pour envoyer un message dans le bus
         format de message envoyer est le json
         """
-        routing_key = options.get("routing_key","")
         properties = options.get("properties",{})
 
         headers = {}
         default_properties = {
             "content_type": "application/json",
             "delivery_mode": pika.spec.PERSISTENT_DELIVERY_MODE,
-            "headers": headers
+            "headers": {}
         }
         default_properties.update(properties)
         options["properties"] = default_properties
@@ -329,6 +328,7 @@ class AMQPTransport(ClientServerTransport):
     def _on_message(self, ch, method, properties, body):
 
         try:
+            raise Exception("Crash test")
             print(" [x] %r:%r" % (method.routing_key, body))
             # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
             try:
@@ -343,17 +343,18 @@ class AMQPTransport(ClientServerTransport):
 
             try:
                 message = json.loads(body.decode())
-                headers = {"x-retry": True, "x-retry-count": 0, "x-routing-key":method.routing_key}
+                _headers = {"x-retry": True, "x-retry-count": 0}
 
                 if "x-retry-count" in properties.headers:
-                    headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
+                    _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
+
+                properties["headers"].update(_headers)
 
                 options = {
-                    "properties":{
-                        "headers": headers
-                    }
+                    "properties":properties,
                 }
                 self.dispatch(message,options)
+                exit()
             except:
                 pass
 
