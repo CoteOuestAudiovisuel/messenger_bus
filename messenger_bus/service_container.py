@@ -15,11 +15,15 @@ logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('messenger')
 logger.setLevel(logging.DEBUG)
 
-def class_loader(module_name, class_name):
+def class_loader(module_name, class_name, args={}):
     import importlib
     module = importlib.import_module(module_name)
     class_ = getattr(module, class_name)
     instance = class_()
+    if args:
+        instance = class_(args)
+    else:
+        instance = class_()
     return instance
 
 framework_template = {}
