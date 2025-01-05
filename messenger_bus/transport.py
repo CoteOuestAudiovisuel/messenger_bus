@@ -6,6 +6,7 @@ import sys
 import pika
 
 from .exceptions import MessengerBusNotSentException
+from .message_handler import DefaultCommand
 
 from .stamp import (AmqpStamp, SendingStamp, AMQPBasicProperties, ReceivedStamp, BusStamp,
                     TransportStamp, SentStamp, NotSentStamp, SkipReceivedStamp)
@@ -108,7 +109,7 @@ class AMQPTransport(ClientServerTransport):
     def __init__(self,definition:AMQPTransportDefinition):
         super().__init__(definition)
 
-    def create_connection(self):
+    def create_connection(self, use_default_exchange=False):
         logger.debug("Connecting...")
         node1 = pika.URLParameters(self.definition.dsn)
         nodes = [node1]
@@ -118,28 +119,41 @@ class AMQPTransport(ClientServerTransport):
         logger.debug("Creation channel, exchange, queue...")
         channel = connection.channel()
         channel.confirm_delivery()
-        channel.exchange_declare(
-            exchange=self.definition.options.get('exchange').get("name"),
-            exchange_type=self.definition.options.get('exchange').get("type"),
-            durable=self.definition.options.get('exchange').get("durable")
-        )
         channel.basic_qos(prefetch_count=1)
-        channel.queue_declare(
-            self.definition.options.get('queue').get("name"),
-            durable=self.definition.options.get('queue').get("durable"),
-            arguments={"x-max-priority": 10}
-        )
-        logger.debug("Creation channel, exchange, queue...OK")
 
-        logger.debug("Binding queue to exchange...")
-        for binding_key in self.definition.options.get('queue').get("binding").split(" "):
-            channel.queue_bind(
-                exchange=self.definition.options.get('exchange').get("name"),
-                queue=self.definition.options.get('queue').get("name"),
-                routing_key=binding_key
+        queue_name = self.definition.options.get('queue').get("name")
+        exchange_name = self.definition.options.get('exchange').get("name")
+
+        if not use_default_exchange:
+            channel.exchange_declare(
+                exchange=exchange_name,
+                exchange_type=self.definition.options.get('exchange').get("type"),
+                durable=self.definition.options.get('exchange').get("durable")
             )
-        logger.debug("Binding queue to exchange...OK")
-        return (connection, channel, self.definition.options.get('queue').get("name"))
+
+            channel.queue_declare(
+                queue_name,
+                durable=self.definition.options.get('queue').get("durable"),
+                arguments={"x-max-priority": 10}
+            )
+
+            logger.debug("Creation channel, exchange, queue...OK")
+
+            logger.debug("Binding queue to exchange...")
+            for binding_key in self.definition.options.get('queue').get("binding").split(" "):
+                channel.queue_bind(
+                    exchange=exchange_name,
+                    queue=queue_name,
+                    routing_key=binding_key
+                )
+            logger.debug("Binding queue to exchange...OK")
+        else:
+            rst = channel.queue_declare(queue="", exclusive=True)
+            queue_name = rst.method.queue
+            exchange_name = ""
+
+        return (connection, channel, queue_name, exchange_name)
+
 
     def _send(self, message, options: dict) -> Envelope:
         """ envoi un message """
@@ -258,9 +272,9 @@ class AMQPTransport(ClientServerTransport):
         properties = {k: v for k, v in properties.items() if v != None}
         connection = None
         try:
-            connection, channel, queue_name = self.create_connection()
+            connection, channel, queue_name, exchange_name = self.create_connection()
             channel.basic_publish(
-                exchange=self.definition.options.get("exchange").get("name"),
+                exchange=exchange_name,
                 routing_key=routing_key,
                 body=body.encode(),
                 properties=pika.BasicProperties(**properties)
@@ -287,7 +301,7 @@ class AMQPTransport(ClientServerTransport):
         while True:
             connection = None
             try:
-                connection, channel, queue_name = self.create_connection()
+                connection, channel, queue_name, exchange_name = self.create_connection()
                 channel.basic_consume(queue=queue_name, on_message_callback=self._on_message, auto_ack=False)
 
                 try:
