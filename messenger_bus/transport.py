@@ -109,7 +109,16 @@ class AMQPTransport(ClientServerTransport):
     def __init__(self,definition:AMQPTransportDefinition):
         super().__init__(definition)
 
-    def create_connection(self, use_default_exchange=False):
+        self._connection = None
+        self._channel = None
+        self._queue_name = None
+        self._exchange_name = ""
+
+    def create_connection(self, use_default_exchange=False, custom_queue_name:str = ""):
+
+        if self._connection:
+            return self._connection, self._channel, self._queue_name, self._exchange_name
+
         logger.debug("Connecting...")
         node1 = pika.URLParameters(self.definition.dsn)
         nodes = [node1]
@@ -121,8 +130,10 @@ class AMQPTransport(ClientServerTransport):
         channel.confirm_delivery()
         channel.basic_qos(prefetch_count=1)
 
-        queue_name = self.definition.options.get('queue').get("name")
+        queue_name = custom_queue_name if custom_queue_name else self.definition.options.get('queue').get("name")
         exchange_name = self.definition.options.get('exchange').get("name")
+
+
 
         if not use_default_exchange:
             channel.exchange_declare(
@@ -148,10 +159,15 @@ class AMQPTransport(ClientServerTransport):
                 )
             logger.debug("Binding queue to exchange...OK")
         else:
-            rst = channel.queue_declare(queue="", exclusive=True)
-            queue_name = rst.method.queue
             exchange_name = ""
 
+            if not custom_queue_name:
+                rst = channel.queue_declare(queue="", exclusive=True)
+                queue_name = rst.method.queue
+            else:
+                channel.queue_declare(queue=custom_queue_name, exclusive=True)
+
+        self._connection, self._channel, self._queue_name, self._exchange_name = connection, channel, queue_name, exchange_name
         return (connection, channel, queue_name, exchange_name)
 
 
@@ -271,6 +287,7 @@ class AMQPTransport(ClientServerTransport):
 
         properties = {k: v for k, v in properties.items() if v != None}
         connection = None
+        self._connection = None
         try:
             connection, channel, queue_name, exchange_name = self.create_connection()
             channel.basic_publish(
@@ -293,16 +310,20 @@ class AMQPTransport(ClientServerTransport):
 
         return envelope
 
-    async def consume(self):
+    async def consume(self, on_message_callback:callable = None, once:bool = False):
         # result = channel.queue_declare('', exclusive=True, durable=True)
         # queue_name = result.method.queue
         max_attempts = 100
 
+        if not on_message_callback:
+            on_message_callback = self._on_message
+
         while True:
             connection = None
+            self._connection = None
             try:
                 connection, channel, queue_name, exchange_name = self.create_connection()
-                channel.basic_consume(queue=queue_name, on_message_callback=self._on_message, auto_ack=False)
+                channel.basic_consume(queue=queue_name, on_message_callback=on_message_callback, auto_ack=False)
 
                 try:
                     channel.start_consuming()
@@ -392,6 +413,23 @@ class AMQPTransport(ClientServerTransport):
                 message_bus.dispatch(body,options)
             except Exception as ee:
                 logger.debug(ee)
+
+    async def consume_once(self, queue_name:str):
+        self._channel.queue_declare(queue=queue_name, exclusive=True)
+
+        for method, properties, body in self._channel.consume(queue_name):
+            # Display the message parts and acknowledge the message
+            logger.debug(method)
+            logger.debug(properties)
+            logger.debug(body)
+            self._channel.basic_ack(method.delivery_tag)
+
+            # Escape out of the loop after 10 messages
+            if method.delivery_tag == 10:
+                break
+            return json.loads(body.decode())
+
+
 
 
 
