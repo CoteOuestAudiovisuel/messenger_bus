@@ -430,9 +430,6 @@ class AMQPTransport(ClientServerTransport):
             return json.loads(body.decode())
 
 
-
-
-
 class TransportManager:
     """
     le transport manager, il sert a orchestrer tout les transport

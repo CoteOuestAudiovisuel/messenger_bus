@@ -1,7 +1,7 @@
 import json
 import logging
 import pathlib
-import re
+import re, uuid
 from collections import namedtuple
 from copy import deepcopy
 from typing import NamedTuple
@@ -21,7 +21,8 @@ class CommandInterfaceMeta(type):
 
     def __new__(metacls, cls, bases, attrs):
 
-        _new_dict = {"__CommandInterfaceMeta_fields__":{}}
+        _new_dict = {"__CommandInterfaceMeta_fields__":{"uuid":str(uuid.uuid4())}}
+
         _to_rem = []
         for k,v in attrs.items():
             if not k.startswith("__") and not k.endswith("__") and not callable(v):

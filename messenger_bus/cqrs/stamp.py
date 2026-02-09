@@ -1,0 +1,4 @@
+from ..stamp import StampInterface
+
+
+
