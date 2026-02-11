@@ -1,113 +1,105 @@
 import asyncio
+from dataclasses import dataclass
 import json
 import logging
+import os
+import traceback
 
+import aio_pika
 import pika
-from .service_container import message_bus
+from aio_pika.abc import AbstractIncomingMessage
+
 from .transport import TransportInterface, ClientServerTransport
+from typing import Any
 
 FORMAT = '%(asctime)s %(levelname)s:%(name)s:%(message)s'
 logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('messenger')
 logger.setLevel(logging.DEBUG)
 
+@dataclass
+class WorkerInitParams:
+    pass
+
+@dataclass
+class WorkerRabbitMQInitParams(WorkerInitParams):
+    connection_uri: str
+    queue_name: str
+    exchange_name: str
+    exchange_type: str
+    binding_keys: list[str]
+    auto_ack: bool = False
+
+
 class WorkerInterface:
 
-    def __init__(self, transport_name:str):
-        from .service_container import transport_manager
-        self._transport: ClientServerTransport = transport_manager.get(transport_name)
+    def __init__(self, params:WorkerInitParams):
+        self._params: WorkerInitParams = params
 
-    def _connect(self):
+    async def _connect(self):
         """ etablit la connection avec le serveur AMQP"""
         raise NotImplementedError
 
-    def consume(self):
+    async def consume(self):
         """ ecoute les nouveaux messages et les dispatch dans le bus"""
         raise NotImplementedError
 
-    def _on_message(self, ch, method, properties, body):
+    async def _on_message(self, message:Any):
         """ traite la reception de nouveaux message """
         raise NotImplementedError
 
-class DefaultWorker(WorkerInterface):
 
-    def __init__(self):
-        super(DefaultWorker, self).__init__()
+class RabbitMQWorker(WorkerInterface):
+
+    def __init__(self, params:WorkerRabbitMQInitParams):
+        super().__init__(params)
         self.connection = None
         self.channel = None
-        self.queue_name = None
-        self.exchange_name = None
+
+    async def _connect(self):
+
+        connection = await aio_pika.connect_robust(self._params.connection_uri)
+        channel = await connection.channel()
+        await channel.set_qos(prefetch_count=1)
+        await channel.declare_exchange(name=self._params.exchange_name, type=self._params.exchange_type, durable=True)
+        my_queue = await channel.declare_queue(self._params.queue_name, durable=True, arguments={"x-max-priority": 10})
+
+        for binding_key in self._params.binding_keys:
+            await my_queue.bind(exchange=self._params.exchange_name, routing_key=binding_key)
+
+        return (connection, channel, my_queue)
 
 
-    def _connect(self):
-        self.connection, self.channel, self.queue_name, self.exchange_name = self._transport.create_connection()
-        return self
+    async def _on_message(self,message: AbstractIncomingMessage) -> None:
+        from .service_container import message_bus
 
-    async def consume(self):
-        # result = channel.queue_declare('', exclusive=True, durable=True)
-        # queue_name = result.method.queue
-        max_attempts = 100
-
-        while True:
-            try:
-                self._connect()
-                self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_message, auto_ack=False)
-
-                try:
-                    self.channel.start_consuming()
-                except KeyboardInterrupt:
-                    self.channel.stop_consuming()
-                    if self.connection:
-                        self.connection.close()
-                    break
-
-            except pika.exceptions.ConnectionClosedByBroker:
-                # Uncomment this to make the example not attempt recovery
-                # from server-initiated connection closure, including
-                # when the node is stopped cleanly
-                # except pika.exceptions.ConnectionClosedByBroker:
-                #     pass
-                logger.debug("Impossible de se connecter au serveur")
-
-            except pika.exceptions.AMQPConnectionError as e:
-                logger.debug("Impossible de se connecter au serveur")
-                # Do not recover on channel errors
-
-            except pika.exceptions.AMQPChannelError as err:
-                logger.debug("Caught a channel error: {}, stopping...".format(err))
-                print("Caught a channel error: {}, stopping...".format(err))
-
-            except Exception as e:
-                logger.debug(e)
-                continue
-            finally:
-                logger.debug("Reconnection du service...")
-
-            await asyncio.sleep(1)
-
-            #max_attempts -= 1
-
-    def _on_message(self,ch, method, properties, body):
         try:
-            print(" [x] %r:%r" % (method.routing_key, body))
-            # task = asyncio.create_task(message_bus.receive(body.decode(),properties.__dict__))
+            print("[x] %r:%r" % (message.routing_key, message.body))
             try:
-                message_bus.receive(body.decode(),properties.__dict__)
+                message_bus.receive(message.body.decode(), {**message.info(), "timestamp":""})
             except Exception as e:
-                logger.debug(e)
-            
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+                logger.warning(traceback.format_exc())
+
+            if not self._params.auto_ack:
+                await message.ack()
         except Exception as e:
             logger.debug(e)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+            if not self._params.auto_ack:
+                await message.ack()
 
             try:
-                message = json.loads(body.decode())
-                headers = {"x-retry":True, "x-retry-count":0}
+                m = json.loads(message.body.decode())
+                headers = {"x-retry": True, "x-retry-count": 0}
 
-                if "x-retry-count" in properties.headers:
-                    headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
+                if "x-retry-count" in m.headers:
+                    headers["x-retry-count"] = m.headers["x-retry-count"] + 1
 
-                message_bus.dispatch(message, method.routing_key,{"headers":headers})
+                message_bus.dispatch(m, message.routing_key, {"headers": headers})
             except:
                 pass
+
+    async def consume(self):
+        connection, channel, queue = await self._connect()
+        await queue.consume(self._on_message, no_ack=self._params.auto_ack)
+        await asyncio.Future()

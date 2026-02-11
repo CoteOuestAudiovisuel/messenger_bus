@@ -10,7 +10,10 @@ properties:
     additionalProperties: false
     required:
       - messenger
+      - producerid
     properties:
+      producerid:
+        type: string
       messenger:
         type: object
         additionalProperties: false

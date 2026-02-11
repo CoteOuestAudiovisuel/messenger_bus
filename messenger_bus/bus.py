@@ -1,6 +1,6 @@
 import asyncio
 import queue
-import sys
+import sys, traceback
 
 from .envelope import Envelope
 from .message_handler import CommandInterface, DefaultCommand
@@ -47,7 +47,7 @@ class MessageBusInterface:
                 envelope = self.run(_envelope)
                 self._queue.task_done()
             except Exception as e:
-                print(e)
+                print(traceback.format_exc())
                 break
 
 
@@ -109,17 +109,23 @@ class MessageBusManager:
     def add(self, definition):
         """ ajoute un bus au manager"""
         bus = MessageBus(MessageBusInterfaceDefinition(definition))
+        if self._buses.get(definition.get("name")):
+            raise Exception("Ce nom de bus d'évenement existe deja")
+
         self._buses[definition.get("name")] = bus
         return self
 
     def remove(self, bus_name:str):
         """ supprime un bus au manager"""
+        if not self._buses.get(definition.get("name")):
+            raise Exception("Ce nom de bus d'évenement n'existe pas")
+
         del self._buses[bus_name]
         return self
 
     def dispatch(self, message,options:dict={}) -> Envelope:
         """
-        il faut choir un bus par lequel envoyer le message
+        il faut choisir un bus par lequel envoyer le message
         donner la possibilité de customiser le bus dans l'argument "options"
         :param message:
         :param options:
@@ -141,7 +147,6 @@ class MessageBusManager:
         bus = bus.pop()
 
         # on doit deviner le transport a utiliser à partir du fichier de configuration messenger.yml
-
         for cls, v in framework_template["framework"]["messenger"]["routing"].items():
             _message_class = "{module}.{classname}".format(module=message.__module__,classname=message.__class__.__name__)
             if cls == _message_class:
