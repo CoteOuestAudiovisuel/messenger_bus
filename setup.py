@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
 
     name='messenger_bus',
-    version='1.2.0',
+    version='1.2.1',
     description='Bus messaging system',
     url='https://github.com/CoteOuestAudiovisuel/messenger_bus',
     author='Zacharie Assagou',
@@ -11,7 +11,7 @@ setup(
     author_email='zacharie.assagou@coteouest.ci',
     license='BSD 2-clause',
     packages=['messenger_bus'],
-    install_requires=['pika','pyyaml','jsonschema'],
+    install_requires=['pika','pyyaml','jsonschema', "aio-pika"],
     include_package_data=True,
     classifiers=[],
 

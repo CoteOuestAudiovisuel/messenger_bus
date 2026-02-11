@@ -4,7 +4,6 @@ title: Messenger Bus Management
 description: Messenger Bus Management
 type: object
 properties:
-
   framework:
     type: object
     additionalProperties: false
