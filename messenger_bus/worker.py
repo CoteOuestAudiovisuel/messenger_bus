@@ -33,8 +33,11 @@ class WorkerRabbitMQInitParams(WorkerInitParams):
 
 class WorkerInterface:
 
-    def __init__(self, params:WorkerInitParams):
+    def __init__(self, params:WorkerInitParams,transport_name:str):
+        from .service_container import transport_manager
+
         self._params: WorkerInitParams = params
+        self._transport: ClientServerTransport = transport_manager.get(transport_name)
 
     async def _connect(self):
         """ etablit la connection avec le serveur AMQP"""
@@ -51,8 +54,8 @@ class WorkerInterface:
 
 class RabbitMQWorker(WorkerInterface):
 
-    def __init__(self, params:WorkerRabbitMQInitParams):
-        super().__init__(params)
+    def __init__(self, params:WorkerRabbitMQInitParams, transport_name:str):
+        super().__init__(params, transport_name=transport_name)
         self.connection = None
         self.channel = None
 
@@ -76,7 +79,7 @@ class RabbitMQWorker(WorkerInterface):
         try:
             print("[x] %r:%r" % (message.routing_key, message.body))
             try:
-                message_bus.receive(message.body.decode(), {**message.info(), "timestamp":""})
+                self._transport.receive(message.body.decode(), {**message.info(), "timestamp":""})
             except Exception as e:
                 logger.warning(traceback.format_exc())
 
@@ -95,7 +98,7 @@ class RabbitMQWorker(WorkerInterface):
                 if "x-retry-count" in m.headers:
                     headers["x-retry-count"] = m.headers["x-retry-count"] + 1
 
-                message_bus.dispatch(m, message.routing_key, {"headers": headers})
+                self._transport.dispatch(m, message.routing_key, {"headers": headers})
             except:
                 pass
 
