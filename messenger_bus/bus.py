@@ -47,7 +47,7 @@ class MessageBusInterface:
                 envelope = self.run(_envelope)
                 self._queue.task_done()
             except queue.Empty as e:
-                pass
+                break
             except Exception as e:
                 print(traceback.format_exc())
                 break
