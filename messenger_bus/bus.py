@@ -38,6 +38,7 @@ class MessageBusInterface:
             raise TypeError(item.__class__.__name__)
         self._queue.put(item)
 
+
     def consume(self):
 
         while True:
@@ -46,11 +47,14 @@ class MessageBusInterface:
                 _envelope = _envelope.remove(DispatchAfterCurrentBusStamp)
                 envelope = self.run(_envelope)
                 self._queue.task_done()
+            except KeyboardInterrupt as e:
+                break
             except queue.Empty as e:
                 break
             except Exception as e:
                 print(traceback.format_exc())
                 break
+
 
 
 class MessageBus(MessageBusInterface):
@@ -78,7 +82,8 @@ class MessageBus(MessageBusInterface):
                 TransportStamp(transport),
             ]
         })
-        transport.dispatch(message,options)
+        envelope:Envelope =  transport.dispatch(message,options)
+        return envelope
 
 
 class MessageBusManager:
@@ -288,7 +293,7 @@ class MessageBusManager:
         _result:Envelope = None
         from copy import copy
         for el in transports:
-            _bus = el[1] if el[1] else bus
+            _bus:MessageBusInterface = el[1] if el[1] else bus
 
             _options = copy(options)
 
@@ -309,9 +314,15 @@ class MessageBusManager:
             else:
                 _result = envelope.update(stamp)
 
+        # il faut trouver un mecanisme de communication
+        # avec les bus pour recuperer leur resultats
 
         if _result and not _result.last("DispatchAfterCurrentBusStamp"):
-            self.dispatch_pending_events()
+            async def my_main():
+                await asyncio.gather(*[b.consume() for _, b in self._buses.items()])
+
+            asyncio.run(my_main())
+            #self.dispatch_pending_events()
 
         return _result
 

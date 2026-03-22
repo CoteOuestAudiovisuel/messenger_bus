@@ -122,6 +122,8 @@ class AMQPTransport(ClientServerTransport):
         logger.debug("Connecting...")
         node1 = pika.URLParameters(self.definition.dsn)
         nodes = [node1]
+
+
         connection = pika.BlockingConnection(parameters=node1)
         logger.debug("Connection...OK")
 
@@ -132,20 +134,47 @@ class AMQPTransport(ClientServerTransport):
 
         queue_name = custom_queue_name if custom_queue_name else self.definition.options.get('queue').get("name")
         exchange_name = self.definition.options.get('exchange').get("name")
+        exchange_type = self.definition.options.get('exchange').get("type")
 
-
+        self._queue_name = queue_name
+        self._exchange_name = exchange_name
 
         if not use_default_exchange:
             channel.exchange_declare(
                 exchange=exchange_name,
-                exchange_type=self.definition.options.get('exchange').get("type"),
+                exchange_type=exchange_type,
+                durable=self.definition.options.get('exchange').get("durable")
+            )
+            # DLX
+            channel.exchange_declare(
+                exchange=f"{exchange_name}_dlx",
+                exchange_type=exchange_type,
                 durable=self.definition.options.get('exchange').get("durable")
             )
 
             channel.queue_declare(
                 queue_name,
                 durable=self.definition.options.get('queue').get("durable"),
-                arguments={"x-max-priority": 10}
+                arguments={
+                    "x-max-priority": 5,
+                    "x-dead-letter-exchange": f"{exchange_name}_dlx",
+                    #"x-dead-letter-routing-key": "phoenix.feed"
+                }
+            )
+            # queue Retry avec TTL
+            channel.queue_declare(
+                queue=f'{queue_name}_retry',
+                durable=True,
+                arguments={
+                    "x-message-ttl": 30000,  # 30 sec
+                    "x-dead-letter-exchange": exchange_name,
+                    #"x-dead-letter-routing-key": "phoenix.feed"
+                }
+            )
+            # queue DLQ
+            channel.queue_declare(
+                queue=f'{queue_name}_dlq',
+                durable=True
             )
 
             logger.debug("Creation channel, exchange, queue...OK")
@@ -155,6 +184,12 @@ class AMQPTransport(ClientServerTransport):
                 channel.queue_bind(
                     exchange=exchange_name,
                     queue=queue_name,
+                    routing_key=binding_key
+                )
+
+                channel.queue_bind(
+                    exchange=f"{exchange_name}_dlx",
+                    queue=f'{queue_name}_dlq',
                     routing_key=binding_key
                 )
             logger.debug("Binding queue to exchange...OK")
@@ -323,7 +358,8 @@ class AMQPTransport(ClientServerTransport):
             self._connection = None
             try:
                 connection, channel, queue_name, exchange_name = self.create_connection()
-                channel.basic_consume(queue=queue_name, on_message_callback=on_message_callback, auto_ack=False)
+                #channel.basic_consume(queue=queue_name, on_message_callback=on_message_callback, auto_ack=True)
+                channel.basic_consume(queue=queue_name, on_message_callback=on_message_callback)
 
                 try:
                     channel.start_consuming()
@@ -349,6 +385,8 @@ class AMQPTransport(ClientServerTransport):
                 logger.debug("Caught a channel error: {}, stopping...".format(err))
                 print("Caught a channel error: {}, stopping...".format(err))
 
+            except KeyboardInterrupt:
+                break
             except Exception as e:
                 logger.debug(e)
                 continue
@@ -360,6 +398,7 @@ class AMQPTransport(ClientServerTransport):
             # max_attempts -= 1
 
     def _on_message(self, ch, method, properties, body):
+        retry_count = self.get_retry_count(properties)
 
         try:
             print(" [x] %r:%r" % (method.routing_key, body))
@@ -370,49 +409,32 @@ class AMQPTransport(ClientServerTransport):
             from .service_container import message_bus
             from .service_container import class_loader
 
-            logger.debug(e)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            logger.warning(e)
 
-            try:
-                _props = properties.__dict__
-                message = json.loads(body.decode())
-                _headers = {"x-retry": True, "x-retry-count": 0}
+            if retry_count >= 5:
+                logger.warning("Max retries atteint → DLQ")
 
-                if "x-retry-count" in properties.headers:
-                    _headers["x-retry-count"] = properties.headers["x-retry-count"] + 1
+                # → envoi vers DLQ
+                ch.basic_reject(
+                    delivery_tag=method.delivery_tag,
+                    requeue=False
+                )
 
-                _props["headers"].update(_headers)
+            else:
+                logger.warning(f"Envoi en retry ({retry_count + 1})")
 
-                options = {
-                    "properties":_props,
-                    "bus": _props["headers"].get("BusStamp","event.bus"),
-                    "transport": _props["headers"].get("TransportStamp", "async"),
-                }
+                #Publie dans retry queue
+                ch.basic_publish(
+                    exchange=method.exchange,
+                    routing_key=f"{self._queue_name}_retry",
+                    body=body,
+                    properties=properties
+                )
 
-                if "CommandInterface" in _props["headers"]:
-                    _module = _props["headers"].get("CommandInterface").split(".")
-                    _class_name = _module.pop()
-                    _module = ".".join(_module)
+                #ACK pour éviter duplication
+                ch.basic_ack(delivery_tag=method.delivery_tag)
 
-                    try:
-                        instance = class_loader(_module, _class_name)
-                        instance._hydrate(message)
-                        body = instance
-                    except:
-                        cmd = DefaultCommand()
-                        for k, v in message.items():
-                            setattr(cmd, k, v)
-                        body = cmd
 
-                else:
-                    cmd = DefaultCommand()
-                    for k, v in message.items():
-                        setattr(cmd, k, v)
-                    body = cmd
-
-                message_bus.dispatch(body,options)
-            except Exception as ee:
-                logger.debug(ee)
 
     async def consume_once(self, queue_name:str):
         self._channel.queue_declare(queue=queue_name, exclusive=True)
@@ -429,6 +451,14 @@ class AMQPTransport(ClientServerTransport):
                 break
             return json.loads(body.decode())
 
+    def get_retry_count(self,properties):
+        headers = properties.headers or {}
+        x_death = headers.get("x-opt-death", []) or headers.get("x-death", [])
+
+        if x_death:
+            return x_death[0].get("count", 0)
+
+        return 0
 
 class TransportManager:
     """

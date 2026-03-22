@@ -135,7 +135,6 @@ class SignatureStamp(StampInterface):
         self.producerId = producerId
         self.payloadToken = payloadToken
 
-
 class EntityStamp(StampInterface):
     """
     Stamp ajoutant la signature numeric des données transportées
@@ -144,3 +143,4 @@ class EntityStamp(StampInterface):
         super(EntityStamp, self).__init__()
         self.entity_id = entity_id
         self.entity_version = entity_version
+
