@@ -1,5 +1,6 @@
 import asyncio
 import queue
+
 import sys, traceback
 
 from .envelope import Envelope
@@ -39,7 +40,7 @@ class MessageBusInterface:
         self._queue.put(item)
 
 
-    def consume(self):
+    async def consume(self):
 
         while True:
             try:
